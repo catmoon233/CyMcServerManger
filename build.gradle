@@ -1,0 +1,42 @@
+plugins {
+    id 'java'
+    id 'application'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
+}
+application {
+    mainClass = 'exmo.cy.ServerManager'
+}
+group 'exmo.cy'
+version '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+
+    implementation 'com.google.code.gson:gson:2.8.9'
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.1'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.1'
+}
+
+task runServer(type: JavaExec) {
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'exmo.cy.ServerManager'
+}
+jar {
+    manifest {
+        attributes(
+                'Main-Class': 'exmo.cy.ServerManager'
+        )
+    }
+}
+
+// 确保 startShadowScripts 依赖于 shadowJar（Shadow 插件默认生成的任务）
+tasks.startShadowScripts {
+    dependsOn shadowJar
+}
+
+test {
+    useJUnitPlatform()
+}
