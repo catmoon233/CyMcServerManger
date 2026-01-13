@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CyMc服务器管理器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .header p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 24px;
+            border-bottom: 2px solid #4facfe;
+            padding-bottom: 8px;
+        }
+
+        .server-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .server-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .server-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .server-card h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 20px;
+        }
+
+        .server-info {
+            color: #666;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .server-status {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+
+        .status-running {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-stopped {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #4facfe;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #3a86ff;
+        }
+
+        .btn-danger {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #ff5252;
+        }
+
+        .btn-success {
+            background: #51cf66;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #40c057;
+        }
+
+        .console {
+            background: #1e1e1e;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 10px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+
+        .console-input {
+            display: flex;
+        }
+
+        .console-input input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px 0 0 5px;
+            font-size: 14px;
+        }
+
+        .console-input button {
+            padding: 10px 20px;
+            background: #4facfe;
+            color: white;
+            border: none;
+            border-radius: 0 5px 5px 0;
+            cursor: pointer;
+        }
+
+        .console-input button:hover {
+            background: #3a86ff;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: bold;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 10% auto;
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 500px;
+        }
+
+        .modal-header {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: black;
+        }
+
+        @media (max-width: 768px) {
+            .server-list {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>CyMc服务器管理器</h1>
+            <p>高性能，现代化服务器管理核心</p>
+        </div>
+
+        <div class="content">
+            <div class="section">
+                <h2>服务器列表</h2>
+                <div class="server-list" id="serverList"></div>
+            </div>
+
+            <div class="section">
+                <h2>创建新服务器</h2>
+                <button class="btn btn-success" onclick="openCreateModal()">创建服务器</button>
+            </div>
+
+            <div class="section" id="consoleSection" style="display: none;">
+                <h2>服务器控制台</h2>
+                <div class="console" id="console"></div>
+                <div class="console-input">
+                    <input type="text" id="consoleInput" placeholder="输入命令...">
+                    <button onclick="sendCommand()">发送</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 创建服务器模态框 -->
+    <div id="createModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeCreateModal()">&times;</span>
+            <div class="modal-header">创建新服务器</div>
+            <form id="createForm">
+                <div class="form-group">
+                    <label>核心文件名</label>
+                    <input type="text" id="coreName" placeholder="核心文件名">
+                </div>
+                <div class="form-group">
+                    <label>服务器名称</label>
+                    <input type="text" id="serverName" placeholder="服务器名称">
+                </div>
+                <div class="form-group">
+                    <label>服务器描述</label>
+                    <input type="text" id="description" placeholder="服务器描述">
+                </div>
+                <button type="submit" class="btn btn-primary">创建</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let currentServer = null;
+        let ws = null;
+
+        // 页面加载时获取服务器列表
+        document.addEventListener('DOMContentLoaded', function() {
+            loadServers();
+            setInterval(loadServers, 5000); // 每5秒刷新一次
+        });
+
+        // 加载服务器列表
+        function loadServers() {
+            fetch('/api/servers/')
+                .then(response => response.json())
+                .then(servers => {
+                    fetch('/api/servers/running')
+                        .then(response => response.json())
+                        .then(runningServers => {
+                            renderServerList(servers, runningServers);
+                        });
+                })
+                .catch(error => console.error('加载服务器列表失败:', error));
+        }
+
+        // 渲染服务器列表
+        function renderServerList(servers, runningServers) {
+            const serverList = document.getElementById('serverList');
+            serverList.innerHTML = '';
+
+            servers.forEach(server => {
+                const isRunning = runningServers[server.name] !== undefined;
+                const serverCard = createServerCard(server, isRunning);
+                serverList.appendChild(serverCard);
+            });
+        }
+
+        // 创建服务器卡片
+        function createServerCard(server, isRunning) {
+            const div = document.createElement('div');
+            div.className = 'server-card';
+
+            div.innerHTML = `
+                <h3>${server.name}</h3>
+                <div class="server-info">版本: ${server.version}</div>
+                <div class="server-info">描述: ${server.description}</div>
+                <div class="server-info">路径: ${server.corePath}</div>
+                <span class="server-status status-${isRunning ? 'running' : 'stopped'}">
+                    ${isRunning ? '运行中' : '已停止'}
+                </span>
+                <br>
+                ${isRunning ? `
+                    <button class="btn btn-danger" onclick="stopServer('${server.name}')">停止</button>
+                    <button class="btn btn-warning" onclick="forceStopServer('${server.name}')">强制停止</button>
+                    <button class="btn btn-primary" onclick="openConsole('${server.name}')">控制台</button>
+                ` : `
+                    <button class="btn btn-success" onclick="startServer('${server.name}')">启动</button>
+                `}
+                <button class="btn btn-danger" onclick="deleteServer('${server.name}')">删除</button>
+            `;
+
+            return div;
+        }
+
+        // 启动服务器
+        function startServer(serverName) {
+            if (confirm(`确定要启动服务器 ${serverName} 吗？`)) {
+                fetch(`/api/servers/${serverName}/start`, {
+                    method: 'POST'
+                })
+                .then(response => response.text())
+                .then(data => {
+                    alert(data);
+                    loadServers();
+                })
+                .catch(error => console.error('启动服务器失败:', error));
+            }
+        }
+
+        // 停止服务器
+        function stopServer(serverName) {
+            if (confirm(`确定要停止服务器 ${serverName} 吗？`)) {
+                fetch(`/api/servers/${serverName}/stop`, {
+                    method: 'POST'
+                })
+                .then(response => response.text())
+                .then(data => {
+                    alert(data);
+                    loadServers();
+                })
+                .catch(error => console.error('停止服务器失败:', error));
+            }
+        }
+
+        // 强制停止服务器
+        function forceStopServer(serverName) {
+            if (confirm(`确定要强制停止服务器 ${serverName} 吗？此操作可能导致数据丢失！`)) {
+                fetch(`/api/servers/${serverName}/forceStop`, {
+                    method: 'POST'
+                })
+                .then(response => response.text())
+                .then(data => {
+                    alert(data);
+                    loadServers();
+                })
+                .catch(error => console.error('强制停止服务器失败:', error));
+            }
+        }
+
+        // 删除服务器
+        function deleteServer(serverName) {
+            if (confirm(`确定要删除服务器 ${serverName} 吗？`)) {
+                fetch(`/api/servers/${serverName}?deleteFiles=true`, {
+                    method: 'DELETE'
+                })
+                .then(response => response.text())
+                .then(data => {
+                    alert(data);
+                    loadServers();
+                })
+                .catch(error => console.error('删除服务器失败:', error));
+            }
+        }
+
+        // 打开控制台
+        function openConsole(serverName) {
+            currentServer = serverName;
+            document.getElementById('consoleSection').style.display = 'block';
+            document.getElementById('console').innerHTML = '';
+            
+            // 连接WebSocket
+            if (ws) {
+                ws.close();
+            }
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${protocol}//${window.location.host}/ws/logs`);
+            
+            ws.onopen = function() {
+                console.log('WebSocket连接已建立');
+            };
+            
+            ws.onmessage = function(event) {
+                const consoleDiv = document.getElementById('console');
+                consoleDiv.innerHTML += event.data + '<br>';
+                consoleDiv.scrollTop = consoleDiv.scrollHeight;
+            };
+            
+            ws.onclose = function() {
+                console.log('WebSocket连接已关闭');
+            };
+            
+            ws.onerror = function(error) {
+                console.error('WebSocket错误:', error);
+            };
+        }
+
+        // 发送命令
+        function sendCommand() {
+            const command = document.getElementById('consoleInput').value;
+            if (!command.trim() || !currentServer) {
+                return;
+            }
+
+            fetch(`/api/servers/${currentServer}/command`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ command: command })
+            })
+            .then(response => response.text())
+            .then(data => {
+                console.log(data);
+                document.getElementById('consoleInput').value = '';
+            })
+            .catch(error => console.error('发送命令失败:', error));
+        }
+
+        // 打开创建服务器模态框
+        function openCreateModal() {
+            document.getElementById('createModal').style.display = 'block';
+        }
+
+        // 关闭创建服务器模态框
+        function closeCreateModal() {
+            document.getElementById('createModal').style.display = 'none';
+            document.getElementById('createForm').reset();
+        }
+
+        // 提交创建服务器表单
+        document.getElementById('createForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const coreName = document.getElementById('coreName').value;
+            const serverName = document.getElementById('serverName').value;
+            const description = document.getElementById('description').value;
+
+            fetch('/api/servers/create', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    coreName: coreName,
+                    serverName: serverName,
+                    description: description
+                })
+            })
+            .then(response => response.text())
+            .then(data => {
+                alert(data);
+                closeCreateModal();
+                loadServers();
+            })
+            .catch(error => console.error('创建服务器失败:', error));
+        });
+
+        // 点击模态框外部关闭
+        window.onclick = function(event) {
+            const modal = document.getElementById('createModal');
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>

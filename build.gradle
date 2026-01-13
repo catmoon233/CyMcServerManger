@@ -2,19 +2,22 @@ plugins {
     id 'java'
     id 'application'
     id 'com.github.johnrengelman.shadow' version '8.1.1'
+    id 'org.springframework.boot' version '2.7.15'
+    id 'io.spring.dependency-management' version '1.0.15.RELEASE'
 }
 application {
-    mainClass = 'exmo.cy.ServerManager'
+    mainClass = 'exmo.cy.ServerManagerApp'
 }
 group 'exmo.cy'
-version '1.0-SNAPSHOT'
+version '2.0'
 
 repositories {
     mavenCentral()
 }
 
 dependencies {
-
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-websocket'
     implementation 'com.google.code.gson:gson:2.8.9'
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.1'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.1'
@@ -22,12 +25,12 @@ dependencies {
 
 task runServer(type: JavaExec) {
     classpath = sourceSets.main.runtimeClasspath
-    mainClass = 'exmo.cy.ServerManager'
+    mainClass = 'exmo.cy.ServerManagerApp'
 }
 jar {
     manifest {
         attributes(
-                'Main-Class': 'exmo.cy.ServerManager'
+                'Main-Class': 'exmo.cy.ServerManagerApp'
         )
     }
 }
