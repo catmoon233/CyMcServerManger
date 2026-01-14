@@ -1,0 +1,76 @@
+/* 控制台容器 */
+.console-container {
+    display: flex;
+    flex-direction: column;
+    height: 500px;
+}
+
+.console-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+/* 控制台输出显示区域 */
+.console-output {
+    flex: 1;
+    background: #0f172a;
+    color: #10b981;
+    padding: 15px;
+    border-radius: 10px;
+    overflow-y: auto;
+    font-family: 'Fira Code', 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    margin-bottom: 15px;
+    min-height: 400px;
+    border: 1px solid #1e293b;
+}
+
+.console-line {
+    margin-bottom: 2px;
+}
+
+/* 控制台输入区域 */
+.console-input-container {
+    display: flex;
+    gap: 10px;
+}
+
+.console-input {
+    flex: 1;
+    padding: 12px 15px;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    font-family: 'Fira Code', 'Courier New', monospace;
+    font-size: 14px;
+    transition: var(--transition);
+    background-color: #f8fafc;
+}
+
+.console-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    background-color: white;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+}
+
+.console-prompt {
+    position: relative;
+}
+
+.console-prompt::before {
+    content: '> ';
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--primary);
+    font-weight: bold;
+}
+
+.console-input.with-prompt {
+    padding-left: 30px;
+}

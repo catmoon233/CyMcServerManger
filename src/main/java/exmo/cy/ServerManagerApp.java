@@ -4,6 +4,8 @@ import exmo.cy.command.CommandHandler;
 import exmo.cy.util.Logger;
 import exmo.cy.web.WebApplication;
 
+import org.springframework.boot.SpringApplication;
+
 import java.util.Scanner;
 
 /**
@@ -48,7 +50,9 @@ public class ServerManagerApp {
         Logger.println("按 Ctrl+C 停止服务器");
         
         // 直接使用SpringApplication启动Web应用程序
-        org.springframework.boot.SpringApplication.run(exmo.cy.web.WebApplication.class, new String[0]);
+        // 设置web应用类型为servlet以确保Web功能正常工作
+        System.setProperty("spring.main.web-application-type", "servlet");
+        SpringApplication.run(exmo.cy.web.WebApplication.class);
     }
 
     /**

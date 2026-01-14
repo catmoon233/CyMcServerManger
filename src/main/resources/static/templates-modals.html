@@ -1,0 +1,49 @@
+<!-- 创建服务器模态框 -->
+<div id="createModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <div class="modal-title">
+                <i class="fas fa-plus-circle"></i> 创建新服务器
+            </div>
+            <span class="close" onclick="closeCreateModal()">&times;</span>
+        </div>
+        <form id="createForm">
+            <div class="form-group">
+                <label for="coreName"><i class="fas fa-file-code"></i> 核心文件名</label>
+                <input type="text" class="form-control" id="coreName" placeholder="例如: paper-1.20.1.jar" required>
+            </div>
+            <div class="form-group">
+                <label for="serverName"><i class="fas fa-server"></i> 服务器名称</label>
+                <input type="text" class="form-control" id="serverName" placeholder="例如: 我的世界服务器" required>
+            </div>
+            <div class="form-group">
+                <label for="description"><i class="fas fa-align-left"></i> 服务器描述</label>
+                <input type="text" class="form-control" id="description" placeholder="简要描述服务器用途">
+            </div>
+            <div class="form-group">
+                <label for="version"><i class="fas fa-tag"></i> 服务器版本</label>
+                <input type="text" class="form-control" id="version" placeholder="例如: 1.20.1">
+            </div>
+            <div class="form-group">
+                <label for="path"><i class="fas fa-folder-open"></i> 服务器路径</label>
+                <input type="text" class="form-control" id="path" placeholder="服务器存放路径">
+            </div>
+            <div class="form-group">
+                <label><i class="fas fa-cogs"></i> 启动模式</label>
+                <select class="form-control" id="launchMode">
+                    <option value="1">核心版本启动</option>
+                    <option value="2">整合包启动</option>
+                    <option value="3">基础核心版本</option>
+                    <option value="4">基础核心版本(修复)</option>
+                    <option value="5">自定义启动模式</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-success" style="width: 100%;">
+                <i class="fas fa-check"></i> 创建服务器
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- 通知元素 -->
+<div class="notification" id="notification"></div>

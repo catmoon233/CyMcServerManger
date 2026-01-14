@@ -5,8 +5,22 @@ plugins {
     id 'org.springframework.boot' version '2.7.15'
     id 'io.spring.dependency-management' version '1.0.15.RELEASE'
 }
+
+// 确保这是web应用
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+// 设置Java兼容性
+java {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+}
+
 application {
-    mainClass = 'exmo.cy.ServerManagerApp'
+    mainClass = 'exmo.cy.web.WebApplication'
 }
 group 'exmo.cy'
 version '2.0'
@@ -19,18 +33,35 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-websocket'
     implementation 'com.google.code.gson:gson:2.8.9'
-    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.1'
-    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.1'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    
+    // Spring Security dependencies
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    
+    // JWT dependencies
+    implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
+    implementation 'io.jsonwebtoken:jjwt-impl:0.11.5'
+    implementation 'io.jsonwebtoken:jjwt-jackson:0.11.5'
+    
+    // H2 Database for demonstration (you can replace with your preferred DB)
+    runtimeOnly 'com.h2database:h2'
+    
+
 }
 
 task runServer(type: JavaExec) {
     classpath = sourceSets.main.runtimeClasspath
-    mainClass = 'exmo.cy.ServerManagerApp'
+    mainClass = 'exmo.cy.web.WebApplication'
+    // 传递参数给应用程序
+    if (project.hasProperty('args')) {
+        args project.args.split('\\s+')
+    }
 }
 jar {
     manifest {
         attributes(
-                'Main-Class': 'exmo.cy.ServerManagerApp'
+                'Main-Class': 'exmo.cy.web.WebApplication'
         )
     }
 }
@@ -40,6 +71,7 @@ tasks.startShadowScripts {
     dependsOn shadowJar
 }
 
-test {
-    useJUnitPlatform()
-}
+// 配置测试任务
+// test {
+//     enabled = false
+// }

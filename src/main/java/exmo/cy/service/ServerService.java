@@ -9,6 +9,7 @@ import exmo.cy.model.ServerInstance;
 import exmo.cy.util.FileUtils;
 import exmo.cy.util.JavaPathFinder;
 import exmo.cy.util.Logger;
+import exmo.cy.web.LogWebSocketHandler;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -45,10 +46,12 @@ public class ServerService {
      * @param coreName 核心文件名
      * @param serverName 服务器名称
      * @param description 描述
+     * @param version 版本
+     * @param path 服务器路径
      * @return 创建的服务器配置
      * @throws ServerOperationException 如果创建失败
      */
-    public Server createServer(String coreName, String serverName, String description) 
+    public Server createServer(String coreName, String serverName, String description, String version, String path) 
             throws ServerOperationException, ConfigurationException {
         
         // 检查服务器名称是否已存在
@@ -56,8 +59,13 @@ public class ServerService {
             throw new ServerOperationException("服务器名称已存在: " + serverName);
         }
         
-        // 创建服务器目录
-        Path serverDir = Paths.get(Constants.SERVERS_DIR, serverName);
+        // 使用指定路径或默认路径创建服务器目录
+        Path serverDir;
+        if (path != null && !path.isEmpty()) {
+            serverDir = Paths.get(path, serverName);
+        } else {
+            serverDir = Paths.get(Constants.SERVERS_DIR, serverName);
+        }
         FileUtils.ensureDirectoryExists(serverDir);
         
         // 复制核心文件
@@ -65,14 +73,17 @@ public class ServerService {
         Path targetCorePath = serverDir.resolve(Constants.CORE_JAR);
         FileUtils.copyFile(sourceCorejar, targetCorePath);
         
-        // 提取版本号
-        String version = extractVersion(coreName);
+        // 如果版本为空，则从核心文件名提取版本号
+        String resolvedVersion = version;
+        if (resolvedVersion == null || resolvedVersion.isEmpty()) {
+            resolvedVersion = extractVersion(coreName);
+        }
         
         // 创建服务器配置
         Server server = new Server();
         server.setName(serverName);
         server.setCorePath(targetCorePath.toString());
-        server.setVersion(version);
+        server.setVersion(resolvedVersion);
         server.setDescription(description);
         server.setModpack(false);
         
@@ -81,6 +92,19 @@ public class ServerService {
         Logger.info("成功创建服务器: " + serverName);
         
         return server;
+    }
+    
+    /**
+     * 创建新服务器（旧方法，为了向后兼容）
+     * @param coreName 核心文件名
+     * @param serverName 服务器名称
+     * @param description 描述
+     * @return 创建的服务器配置
+     * @throws ServerOperationException 如果创建失败
+     */
+    public Server createServer(String coreName, String serverName, String description) 
+            throws ServerOperationException, ConfigurationException {
+        return createServer(coreName, serverName, description, "1.0.0", "");
     }
     
     /**
@@ -146,6 +170,9 @@ public class ServerService {
         // 启动进程
         ServerInstance instance = processManager.startProcess(pb);
         instance.setServer(server);
+        
+        // 设置服务器名称
+        processManager.setServerName(instance, server.getName());
         
         // 保存启动配置
         LaunchConfig config = new LaunchConfig(server.getName(), launchMode, javaPath, jvmArgs, serverArgs);
@@ -262,9 +289,13 @@ public class ServerService {
         new Thread(() -> {
             try {
                 int exitCode = processManager.waitForProcess(instance);
-                Logger.info("服务器 " + instance.getServer().getName() + " 已关闭，退出代码: " + exitCode);
+                String message = "服务器 " + instance.getServer().getName() + " 已关闭，退出代码: " + exitCode;
+                Logger.info(message);
+                LogWebSocketHandler.sendLogMessage(instance.getServer().getName(), "[INFO] " + message);
             } catch (ServerOperationException e) {
-                Logger.error("监控进程时出错", e);
+                String errorMessage = "监控服务器进程时出错: " + e.getMessage();
+                Logger.error(errorMessage, e);
+                LogWebSocketHandler.sendLogMessage(instance.getServer().getName(), "[ERROR] " + errorMessage);
             } finally {
                 activeServers.remove(instance.getServer().getName());
             }
@@ -282,6 +313,7 @@ public class ServerService {
             throw new ServerOperationException("服务器未运行: " + serverName);
         }
         processManager.stopServer(instance);
+        LogWebSocketHandler.sendLogMessage(serverName, "[INFO] 服务器正在停止...");
     }
     
     /**
@@ -296,6 +328,7 @@ public class ServerService {
         }
         processManager.forceStopServer(instance);
         activeServers.remove(serverName);
+        LogWebSocketHandler.sendLogMessage(serverName, "[INFO] 服务器已被强制停止");
     }
     
     /**
@@ -310,6 +343,7 @@ public class ServerService {
             throw new ServerOperationException("服务器未运行: " + serverName);
         }
         processManager.sendCommand(instance, command);
+        LogWebSocketHandler.sendLogMessage(serverName, "[COMMAND SENT] " + command);
     }
     
     /**

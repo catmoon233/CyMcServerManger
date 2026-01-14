@@ -80,6 +80,30 @@ public class ServerInstance {
         return System.currentTimeMillis() - startTime;
     }
     
+    /**
+     * 获取服务器名称（如果服务器配置存在）
+     * @return 服务器名称，如果不存在则返回null
+     */
+    public String getServerName() {
+        return server != null ? server.getName() : null;
+    }
+    
+    /**
+     * 获取服务器版本（如果服务器配置存在）
+     * @return 服务器版本，如果不存在则返回null
+     */
+    public String getVersion() {
+        return server != null ? server.getVersion() : null;
+    }
+    
+    /**
+     * 获取服务器描述（如果服务器配置存在）
+     * @return 服务器描述，如果不存在则返回null
+     */
+    public String getDescription() {
+        return server != null ? server.getDescription() : null;
+    }
+    
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

@@ -3,8 +3,11 @@ package exmo.cy.service;
 import exmo.cy.exception.ServerOperationException;
 import exmo.cy.model.ServerInstance;
 import exmo.cy.util.Logger;
+import exmo.cy.web.LogWebSocketHandler;
 
 import java.io.*;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 /**
@@ -12,6 +15,9 @@ import java.util.function.Consumer;
  * 负责管理服务器进程的输入输出流
  */
 public class ProcessManager {
+    
+    // 存储服务器名称到实例的映射，用于WebSocket通信
+    private final Map<ServerInstance, String> serverNames = new ConcurrentHashMap<>();
     
     /**
      * 启动进程并设置输出监听
@@ -28,9 +34,21 @@ public class ProcessManager {
             instance.setProcess(process);
             instance.setProcessInput(process.getOutputStream());
             
-            // 启动输出监听线程
-            startOutputGobbler(process.getInputStream(), System.out::println);
-            startOutputGobbler(process.getErrorStream(), System.err::println);
+            // 从目录获取服务器名称
+            String serverName = extractServerNameFromDirectory(processBuilder.directory().getPath());
+            setServerName(instance, serverName);
+            
+            Logger.info("服务器名称: " + serverName);
+            
+            // 启动输出监听线程 - 传递服务器名称用于日志记录
+            startOutputGobbler(process.getInputStream(), serverName, output -> {
+                System.out.println("[PROCESS OUTPUT] " + output);  // 添加调试日志
+                LogWebSocketHandler.sendLogMessage(serverName, output);
+            });
+            startOutputGobbler(process.getErrorStream(), serverName, error -> {
+                System.err.println("[PROCESS ERROR] " + error);   // 添加调试日志
+                LogWebSocketHandler.sendLogMessage(serverName, "[ERROR] " + error);
+            });
             
             return instance;
         } catch (IOException e) {
@@ -39,12 +57,39 @@ public class ProcessManager {
     }
     
     /**
+     * 从目录路径提取服务器名称
+     */
+    private String extractServerNameFromDirectory(String directoryPath) {
+        // 从路径中提取服务器名称（通常是目录的最后一部分）
+        String[] parts = directoryPath.split("[\\\\/]");
+        if (parts.length > 0) {
+            return parts[parts.length - 1];
+        }
+        return "unknown";
+    }
+    
+    /**
+     * 设置服务器名称与实例的关联
+     */
+    public void setServerName(ServerInstance instance, String serverName) {
+        serverNames.put(instance, serverName);
+    }
+    
+    /**
+     * 获取服务器名称
+     */
+    public String getServerName(ServerInstance instance) {
+        return serverNames.get(instance);
+    }
+    
+    /**
      * 启动输出流读取线程
      * @param inputStream 输入流
+     * @param serverName 服务器名称
      * @param consumer 输出消费者
      */
-    private void startOutputGobbler(InputStream inputStream, Consumer<String> consumer) {
-        Thread thread = new Thread(new StreamGobbler(inputStream, consumer));
+    private void startOutputGobbler(InputStream inputStream, String serverName, Consumer<String> consumer) {
+        Thread thread = new Thread(new StreamGobbler(inputStream, serverName, consumer));
         thread.setDaemon(true);
         thread.start();
     }
@@ -62,10 +107,21 @@ public class ProcessManager {
         
         try {
             OutputStream input = instance.getProcessInput();
-            input.write((command + "\n").getBytes());
+            if (input == null) {
+                throw new ServerOperationException("无法获取服务器输入流");
+            }
+            input.write((command + "\n").getBytes("UTF-8"));  // 确保使用UTF-8编码并添加换行符
             input.flush();
             Logger.debug("发送命令到服务器: " + command);
+            
+            // 发送命令到WebSocket
+            String serverName = getServerName(instance);
+            if (serverName == null) {
+                serverName = instance.getServerName() != null ? instance.getServerName() : "unknown";
+            }
+            LogWebSocketHandler.sendLogMessage(serverName, "[COMMAND SENT] " + command);
         } catch (IOException e) {
+            Logger.error("发送命令失败", e);
             throw new ServerOperationException("发送命令失败", e);
         }
     }
@@ -102,10 +158,18 @@ public class ProcessManager {
         }
         
         try {
+            String serverName = getServerName(instance);
+            if (serverName == null) {
+                serverName = instance.getServerName() != null ? instance.getServerName() : "unknown";
+            }
+            LogWebSocketHandler.sendLogMessage(serverName, "[INFO] 强制终止服务器进程");
+            
             Logger.info("强制终止服务器进程");
             instance.getProcess().destroyForcibly();
             int exitCode = instance.getProcess().waitFor();
             Logger.info("服务器进程已终止，退出代码: " + exitCode);
+            
+            LogWebSocketHandler.sendLogMessage(serverName, "[INFO] 服务器进程已终止，退出代码: " + exitCode);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new ServerOperationException("等待进程终止时被中断", e);
@@ -138,21 +202,31 @@ public class ProcessManager {
     private static class StreamGobbler implements Runnable {
         private final InputStream inputStream;
         private final Consumer<String> consumer;
+        private final String serverName;
         
-        public StreamGobbler(InputStream inputStream, Consumer<String> consumer) {
+        public StreamGobbler(InputStream inputStream, String serverName, Consumer<String> consumer) {
             this.inputStream = inputStream;
             this.consumer = consumer;
+            this.serverName = serverName;
         }
         
         @Override
         public void run() {
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
+            // 设置当前线程的服务器名称上下文
+            if (serverName != null && !serverName.isEmpty()) {
+                Logger.setServerNameContext(serverName);
+            }
+            
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, "UTF-8"))) {
                 String line;
                 while ((line = reader.readLine()) != null) {
                     consumer.accept(line);
                 }
             } catch (IOException e) {
                 Logger.debug("读取进程输出时出错: " + e.getMessage());
+            } finally {
+                // 清除线程本地存储
+                Logger.clearServerNameContext();
             }
         }
     }

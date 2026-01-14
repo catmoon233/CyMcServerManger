@@ -13,9 +13,39 @@ public final class Logger {
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static LogLevel currentLevel = LogLevel.INFO;
     
+    // 线程本地存储，用于追踪当前线程的服务器名称上下文
+    private static final ThreadLocal<String> serverNameContext = ThreadLocal.withInitial(() -> "CONSOLE");
+    
     // 防止实例化
     private Logger() {
         throw new UnsupportedOperationException("这是一个工具类，不能被实例化");
+    }
+    
+    /**
+     * 设置当前线程的服务器名称上下文
+     * @param serverName 服务器名称
+     */
+    public static void setServerNameContext(String serverName) {
+        if (serverName != null && !serverName.isEmpty()) {
+            serverNameContext.set(serverName);
+        } else {
+            serverNameContext.set("CONSOLE");
+        }
+    }
+    
+    /**
+     * 获取当前线程的服务器名称上下文
+     * @return 服务器名称
+     */
+    public static String getServerNameContext() {
+        return serverNameContext.get();
+    }
+    
+    /**
+     * 清除当前线程的服务器名称上下文
+     */
+    public static void clearServerNameContext() {
+        serverNameContext.remove();
     }
     
     /**
@@ -101,9 +131,10 @@ public final class Logger {
             String logMessage = String.format("[%s] [%s] %s", timestamp, level.name(), message);
             System.out.println(logMessage);
             
-            // 通过WebSocket发送到前端
+            // 通过WebSocket发送到前端 - 使用当前线程的服务器名称上下文
             try {
-                LogWebSocketHandler.sendLogMessage(logMessage);
+                String contextServerName = getServerNameContext();
+                LogWebSocketHandler.sendLogMessage(contextServerName, logMessage);
             } catch (Exception e) {
                 // 忽略WebSocket发送错误
             }
@@ -118,9 +149,10 @@ public final class Logger {
         System.out.println(message);
         System.out.println();
         
-        // 通过WebSocket发送到前端
+        // 通过WebSocket发送到前端 - 使用当前线程的服务器名称上下文
         try {
-            LogWebSocketHandler.sendLogMessage(message);
+            String contextServerName = getServerNameContext();
+            LogWebSocketHandler.sendLogMessage(contextServerName, message);
         } catch (Exception e) {
             // 忽略WebSocket发送错误
         }
@@ -133,9 +165,10 @@ public final class Logger {
     public static void print(String message) {
         System.out.print(message);
         
-        // 通过WebSocket发送到前端
+        // 通过WebSocket发送到前端 - 使用当前线程的服务器名称上下文
         try {
-            LogWebSocketHandler.sendLogMessage(message);
+            String contextServerName = getServerNameContext();
+            LogWebSocketHandler.sendLogMessage(contextServerName, message);
         } catch (Exception e) {
             // 忽略WebSocket发送错误
         }

@@ -1,0 +1,105 @@
+<!-- 主应用容器 -->
+<div class="app-container" id="mainApp">
+    <div class="container">
+        <!-- 页面头部 -->
+        <div class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-server"></i>
+                </div>
+                <div class="header-text">
+                    <h1>CyMc服务器管理器</h1>
+                    <p>高性能，现代化服务器管理核心</p>
+                </div>
+            </div>
+            <div class="user-info">
+                <div class="user-avatar" id="userAvatar">U</div>
+                <div class="user-menu">
+                    <span id="usernameDisplay">用户名</span>
+                    <i class="fas fa-chevron-down" style="margin-left: 5px; cursor: pointer;" onclick="toggleUserMenu()"></i>
+                    <div class="dropdown" id="userDropdown">
+                        <a href="#" class="dropdown-item" onclick="showProfile()"><i class="fas fa-user"></i> 个人资料</a>
+                        <a href="#" class="dropdown-item" onclick="changePassword()"><i class="fas fa-key"></i> 修改密码</a>
+                        <a href="#" class="dropdown-item" onclick="logout()"><i class="fas fa-sign-out-alt"></i> 退出登录</a>
+                    </div>
+                </div>
+                <button id="themeToggle" class="btn btn-outline" onclick="toggleTheme()" title="切换主题" style="margin-left:8px;">
+                    <i class="fas fa-moon"></i>
+                </button>
+            </div>
+            <div class="stats">
+                <div class="stat-item">
+                    <div class="stat-number" id="totalServers">0</div>
+                    <div class="stat-label">总服务器</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="runningServers">0</div>
+                    <div class="stat-label">运行中</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="totalPlayers">0</div>
+                    <div class="stat-label">在线玩家</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 主要内容区域 -->
+        <div class="main-content">
+            <!-- 服务器列表面板 -->
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <i class="fas fa-list"></i> 服务器列表
+                    </div>
+                    <div class="panel-actions">
+                        <button class="btn btn-success" onclick="openCreateModal()">
+                            <i class="fas fa-plus"></i> 创建服务器
+                        </button>
+                        <button class="btn btn-outline" onclick="refreshServers()">
+                            <i class="fas fa-sync"></i> 刷新
+                        </button>
+                    </div>
+                </div>
+                <div class="panel-body">
+                    <div class="server-list" id="serverList"></div>
+                </div>
+            </div>
+
+            <!-- 控制台面板 -->
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <i class="fas fa-terminal"></i> 控制台
+                    </div>
+                    <div class="panel-actions">
+                        <button class="btn btn-outline" onclick="clearConsole()" id="clearConsoleBtn" disabled>
+                            <i class="fas fa-broom"></i> 清空
+                        </button>
+                        <button class="btn btn-outline" onclick="toggleAutoScroll()" id="autoScrollBtn">
+                            <i class="fas fa-arrow-down"></i> 自动滚动
+                        </button>
+                    </div>
+                </div>
+                <div class="panel-body">
+                    <div class="console-container">
+                        <div class="console-header">
+                            <select id="serverSelect" disabled>
+                                <option value="">选择服务器查看控制台</option>
+                            </select>
+                        </div>
+                        <div class="console-output" id="consoleOutput">
+                            <div class="console-line">欢迎使用 CyMc 服务器管理器控制台</div>
+                            <div class="console-line">等待连接到服务器...</div>
+                        </div>
+                        <div class="console-input-container">
+                            <input type="text" class="console-input with-prompt" id="consoleInput" placeholder="输入命令..." disabled>
+                            <button class="btn btn-primary" onclick="sendCommand()" id="sendCommandBtn" disabled>
+                                <i class="fas fa-paper-plane"></i> 发送
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
