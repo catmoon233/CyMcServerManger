@@ -41,3 +41,9 @@ bin/
 ### Mac OS ###
 .DS_Store
 .kilocode
+
+### Database Files ###
+data/
+*.db
+*.mv.db
+*.trace.db

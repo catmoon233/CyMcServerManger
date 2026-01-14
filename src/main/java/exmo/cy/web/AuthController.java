@@ -12,6 +12,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -48,13 +49,18 @@ public class AuthController {
             // 更新最后登录时间
             User user = userRepository.findByUsername(username).orElse(null);
             if (user != null) {
-                // 注意：这里简化了最后登录时间的更新，实际实现可能需要异步更新
+                user.setLastLoginAt(LocalDateTime.now());
+                userRepository.save(user);
             }
             
-            Map<String, String> response = new HashMap<>();
+            // 获取用户角色
+            String role = user != null ? user.getRole() : "USER";
+            
+            Map<String, Object> response = new HashMap<>();
             response.put("token", jwt);
             response.put("tokenType", "Bearer");
             response.put("username", username);
+            response.put("role", role);
             
             return ResponseEntity.ok(response);
         } catch (Exception e) {
@@ -99,6 +105,34 @@ public class AuthController {
         // 但在实际应用中，你可能需要实现一个黑名单机制
         Map<String, String> response = new HashMap<>();
         response.put("message", "登出成功");
+        return ResponseEntity.ok(response);
+    }
+    
+    @GetMapping("/me")
+    public ResponseEntity<?> getCurrentUser(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            Map<String, String> response = new HashMap<>();
+            response.put("error", "未登录");
+            return ResponseEntity.status(401).body(response);
+        }
+        
+        String username = authentication.getName();
+        User user = userRepository.findByUsername(username).orElse(null);
+        
+        if (user == null) {
+            Map<String, String> response = new HashMap<>();
+            response.put("error", "用户不存在");
+            return ResponseEntity.status(404).body(response);
+        }
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("id", user.getId());
+        response.put("username", user.getUsername());
+        response.put("role", user.getRole());
+        response.put("createdAt", user.getCreatedAt() != null ? user.getCreatedAt().toString() : null);
+        response.put("lastLoginAt", user.getLastLoginAt() != null ? user.getLastLoginAt().toString() : null);
+        response.put("enabled", user.isEnabled());
+        
         return ResponseEntity.ok(response);
     }
 }

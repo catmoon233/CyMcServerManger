@@ -14,6 +14,13 @@
     <link rel="stylesheet" href="styles-layout.css">
     <link rel="stylesheet" href="styles-components.css">
     <link rel="stylesheet" href="styles-console.css">
+    <link rel="stylesheet" href="styles-dashboard.css">
+    <link rel="stylesheet" href="styles-animations.css">
+    <link rel="stylesheet" href="styles-admin.css">
+    
+    <!-- 元数据 -->
+    <meta name="description" content="CyMc服务器管理器 - 高性能、现代化的Minecraft服务器管理面板">
+    <meta name="theme-color" content="#3b82f6">
 </head>
 <body>
     <!-- 认证模板（登录/注册） -->
@@ -26,12 +33,17 @@
             </div>
             <form id="loginForm">
                 <div class="form-group">
-                    <label for="username"><i class="fas fa-user"></i> 用户名</label>
-                    <input type="text" class="form-control" id="username" placeholder="请输入用户名" required>
+                    <label for="username"><i class="fas fa-user" aria-hidden="true"></i> 用户名</label>
+                    <input type="text" class="form-control" id="username" name="username" placeholder="请输入用户名" required autocomplete="username">
                 </div>
                 <div class="form-group">
-                    <label for="password"><i class="fas fa-lock"></i> 密码</label>
-                    <input type="password" class="form-control" id="password" placeholder="请输入密码" required>
+                    <label for="password"><i class="fas fa-lock" aria-hidden="true"></i> 密码</label>
+                    <div class="password-input-wrapper">
+                        <input type="password" class="form-control" id="password" name="password" placeholder="请输入密码" required autocomplete="current-password">
+                        <button type="button" class="password-toggle-btn" id="passwordToggle" aria-label="显示/隐藏密码">
+                            <i class="fas fa-eye" aria-hidden="true"></i>
+                        </button>
+                    </div>
                 </div>
                 <button type="submit" class="btn btn-primary btn-block">
                     <i class="fas fa-sign-in-alt"></i> 登录
@@ -52,20 +64,30 @@
             </div>
             <form id="registerForm">
                 <div class="form-group">
-                    <label for="regUsername"><i class="fas fa-user"></i> 用户名</label>
-                    <input type="text" class="form-control" id="regUsername" placeholder="请输入用户名" required>
+                    <label for="regUsername"><i class="fas fa-user" aria-hidden="true"></i> 用户名</label>
+                    <input type="text" class="form-control" id="regUsername" name="username" placeholder="请输入用户名" required autocomplete="username">
                 </div>
                 <div class="form-group">
-                    <label for="regEmail"><i class="fas fa-envelope"></i> 邮箱</label>
-                    <input type="email" class="form-control" id="regEmail" placeholder="请输入邮箱">
+                    <label for="regEmail"><i class="fas fa-envelope" aria-hidden="true"></i> 邮箱</label>
+                    <input type="email" class="form-control" id="regEmail" name="email" placeholder="请输入邮箱" autocomplete="email">
                 </div>
                 <div class="form-group">
-                    <label for="regPassword"><i class="fas fa-lock"></i> 密码</label>
-                    <input type="password" class="form-control" id="regPassword" placeholder="请输入密码" required>
+                    <label for="regPassword"><i class="fas fa-lock" aria-hidden="true"></i> 密码</label>
+                    <div class="password-input-wrapper">
+                        <input type="password" class="form-control" id="regPassword" name="password" placeholder="请输入密码" required autocomplete="new-password">
+                        <button type="button" class="password-toggle-btn" id="regPasswordToggle" aria-label="显示/隐藏密码">
+                            <i class="fas fa-eye" aria-hidden="true"></i>
+                        </button>
+                    </div>
                 </div>
                 <div class="form-group">
-                    <label for="regConfirmPassword"><i class="fas fa-lock"></i> 确认密码</label>
-                    <input type="password" class="form-control" id="regConfirmPassword" placeholder="请再次输入密码" required>
+                    <label for="regConfirmPassword"><i class="fas fa-lock" aria-hidden="true"></i> 确认密码</label>
+                    <div class="password-input-wrapper">
+                        <input type="password" class="form-control" id="regConfirmPassword" name="confirmPassword" placeholder="请再次输入密码" required autocomplete="new-password">
+                        <button type="button" class="password-toggle-btn" id="regConfirmPasswordToggle" aria-label="显示/隐藏密码">
+                            <i class="fas fa-eye" aria-hidden="true"></i>
+                        </button>
+                    </div>
                 </div>
                 <button type="submit" class="btn btn-success btn-block">
                     <i class="fas fa-user-plus"></i> 注册
@@ -76,6 +98,9 @@
             </div>
         </div>
     </div>
+
+    <!-- 粒子效果容器 -->
+    <div class="particles-container" id="particlesContainer"></div>
 
     <!-- 主应用容器 -->
     <div class="app-container" id="mainApp" style="display: none;">
@@ -102,22 +127,87 @@
                             <a href="#" class="dropdown-item" onclick="logout()"><i class="fas fa-sign-out-alt"></i> 退出登录</a>
                         </div>
                     </div>
-                    <button id="themeToggle" class="btn btn-outline" onclick="toggleTheme()" title="切换主题" style="margin-left:8px;">
-                        <i class="fas fa-moon"></i>
+                    <button id="themeToggle" class="btn btn-outline" onclick="toggleTheme()" title="切换主题" aria-label="切换主题" style="margin-left:8px;">
+                        <i class="fas fa-moon" aria-hidden="true"></i>
                     </button>
                 </div>
                 <div class="stats">
-                    <div class="stat-item">
-                        <div class="stat-number" id="totalServers">0</div>
-                        <div class="stat-label">总服务器</div>
+                    <div class="stat-item" data-stat="total">
+                        <div class="stat-icon">
+                            <i class="fas fa-server"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-number" id="totalServers">0</div>
+                            <div class="stat-label">总服务器</div>
+                            <div class="stat-trend">
+                                <i class="fas fa-arrow-up"></i> <span id="totalServersTrend">--</span>
+                            </div>
+                        </div>
+                        <div class="stat-progress">
+                            <div class="circular-progress" data-progress="0" id="totalServersProgress">
+                                <svg class="progress-ring" width="60" height="60">
+                                    <circle class="progress-ring-circle" cx="30" cy="30" r="26" />
+                                </svg>
+                                <div class="progress-text">0%</div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="stat-item">
-                        <div class="stat-number" id="runningServers">0</div>
-                        <div class="stat-label">运行中</div>
+                    <div class="stat-item" data-stat="running">
+                        <div class="stat-icon">
+                            <i class="fas fa-play-circle"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-number" id="runningServers">0</div>
+                            <div class="stat-label">运行中</div>
+                            <div class="stat-trend">
+                                <i class="fas fa-arrow-up"></i> <span id="runningServersTrend">--</span>
+                            </div>
+                        </div>
+                        <div class="stat-progress">
+                            <div class="circular-progress" data-progress="0" id="runningServersProgress">
+                                <svg class="progress-ring" width="60" height="60">
+                                    <circle class="progress-ring-circle" cx="30" cy="30" r="26" />
+                                </svg>
+                                <div class="progress-text">0%</div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="stat-item">
-                        <div class="stat-number" id="totalPlayers">0</div>
-                        <div class="stat-label">在线玩家</div>
+                    <div class="stat-item" data-stat="players">
+                        <div class="stat-icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-number" id="totalPlayers">0</div>
+                            <div class="stat-label">在线玩家</div>
+                            <div class="stat-trend">
+                                <i class="fas fa-arrow-up"></i> <span id="totalPlayersTrend">--</span>
+                            </div>
+                        </div>
+                        <div class="stat-progress">
+                            <div class="circular-progress" data-progress="0" id="totalPlayersProgress">
+                                <svg class="progress-ring" width="60" height="60">
+                                    <circle class="progress-ring-circle" cx="30" cy="30" r="26" />
+                                </svg>
+                                <div class="progress-text">0%</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="stat-item" data-stat="uptime">
+                        <div class="stat-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-number" id="avgUptime">0h</div>
+                            <div class="stat-label">平均运行时间</div>
+                            <div class="stat-trend">
+                                <i class="fas fa-chart-line"></i> <span id="uptimeTrend">--</span>
+                            </div>
+                        </div>
+                        <div class="stat-progress">
+                            <div class="linear-progress">
+                                <div class="linear-progress-bar" id="uptimeProgressBar" style="width: 0%"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -151,6 +241,9 @@
                             <i class="fas fa-terminal"></i> 控制台
                         </div>
                         <div class="panel-actions">
+                            <button class="btn btn-outline" onclick="exportConsoleLogs()" id="exportLogsBtn" title="导出日志">
+                                <i class="fas fa-download"></i> 导出
+                            </button>
                             <button class="btn btn-outline" onclick="clearConsole()" id="clearConsoleBtn" disabled>
                                 <i class="fas fa-broom"></i> 清空
                             </button>
@@ -162,18 +255,24 @@
                     <div class="panel-body">
                         <div class="console-container">
                             <div class="console-header">
-                                <select id="serverSelect" disabled>
+                                <label for="serverSelect" class="sr-only">选择服务器</label>
+                                <select id="serverSelect" name="serverSelect" disabled aria-label="选择服务器查看控制台">
                                     <option value="">选择服务器查看控制台</option>
                                 </select>
+                                <div class="ws-status" id="wsStatus" title="WebSocket连接状态">
+                                    <span class="ws-status-indicator" id="wsStatusIndicator"></span>
+                                    <span class="ws-status-text" id="wsStatusText">未连接</span>
+                                </div>
                             </div>
                             <div class="console-output" id="consoleOutput">
                                 <div class="console-line">欢迎使用 CyMc 服务器管理器控制台</div>
                                 <div class="console-line">等待连接到服务器...</div>
                             </div>
                             <div class="console-input-container">
-                                <input type="text" class="console-input with-prompt" id="consoleInput" placeholder="输入命令..." disabled>
-                                <button class="btn btn-primary" onclick="sendCommand()" id="sendCommandBtn" disabled>
-                                    <i class="fas fa-paper-plane"></i> 发送
+                                <label for="consoleInput" class="sr-only">控制台命令输入</label>
+                                <input type="text" class="console-input with-prompt" id="consoleInput" name="consoleInput" placeholder="输入命令..." disabled aria-label="控制台命令输入">
+                                <button class="btn btn-primary" onclick="sendCommand()" id="sendCommandBtn" disabled aria-label="发送命令">
+                                    <i class="fas fa-paper-plane" aria-hidden="true"></i> 发送
                                 </button>
                             </div>
                         </div>
@@ -184,13 +283,13 @@
     </div>
 
     <!-- 创建服务器模态框 -->
-    <div id="createModal" class="modal">
+    <div id="createModal" class="modal" role="dialog" aria-labelledby="modalTitle" aria-modal="true">
         <div class="modal-content">
             <div class="modal-header">
-                <div class="modal-title">
-                    <i class="fas fa-plus-circle"></i> 创建新服务器
+                <div class="modal-title" id="modalTitle">
+                    <i class="fas fa-plus-circle" aria-hidden="true"></i> 创建新服务器
                 </div>
-                <span class="close" onclick="closeCreateModal()">&times;</span>
+                <button type="button" class="close" onclick="closeCreateModal()" aria-label="关闭对话框">&times;</button>
             </div>
             <form id="createForm">
                 <div class="form-group">
@@ -237,11 +336,17 @@
     <!-- API 客户端 (必须首先加载) -->
     <script src="api-client.js"></script>
     
+    <!-- 动画和交互效果 -->
+    <script src="animations.js"></script>
+    
     <!-- UI 工具函数 -->
     <script src="ui-utils.js"></script>
     
     <!-- 认证模块 -->
     <script src="auth.js"></script>
+    
+    <!-- 管理员面板模块 -->
+    <script src="admin.js"></script>
     
     <!-- 服务器管理模块 -->
     <script src="servers.js"></script>
@@ -252,7 +357,7 @@
     <!-- 主应用初始化脚本 -->
     <script>
         // 页面加载时的初始化
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
             // 初始化主题
             initializeTheme();
             
@@ -264,7 +369,12 @@
             setupUnloadHandler();
             
             // 检查认证状态
-            initializeAuthState();
+            await initializeAuthState();
+            
+            // 初始化管理员面板（如果已登录）
+            if (getAuthToken() && typeof initializeAdminPanel === 'function') {
+                await initializeAdminPanel();
+            }
         });
     </script>
 </body>

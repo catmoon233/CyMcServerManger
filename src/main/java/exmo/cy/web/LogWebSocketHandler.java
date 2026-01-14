@@ -39,22 +39,43 @@ public class LogWebSocketHandler extends TextWebSocketHandler {
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-        // 从URI获取服务器名称
-        String uri = session.getUri().toString();
-        String serverName = extractServerNameFromUri(uri);
-        
-        // 验证JWT令牌
-        String token = extractTokenFromUri(uri);
-        if (token != null && validateToken(token)) {
-            System.out.println("新的WebSocket连接到服务器 " + serverName + ": " + session.getId());
-            serverSessions.computeIfAbsent(serverName, k -> new CopyOnWriteArrayList<>()).add(session);
+        try {
+            // 从URI获取服务器名称
+            String uri = session.getUri().toString();
+            System.out.println("WebSocket连接请求 URI: " + uri);
             
-            // 发送连接成功的确认消息
-            sendMessageToSession(session, "WebSocket连接已建立，正在连接到 " + serverName + " 控制台...");
-        } else {
-            System.err.println("WebSocket连接认证失败，关闭连接");
-            session.close(CloseStatus.NOT_ACCEPTABLE.withReason("认证失败"));
-            return;
+            String serverName = extractServerNameFromUri(uri);
+            System.out.println("提取的服务器名称: " + serverName);
+            
+            // 验证JWT令牌
+            String token = extractTokenFromUri(uri);
+            if (token == null || token.isEmpty()) {
+                System.err.println("WebSocket连接认证失败: 令牌为空");
+                session.close(CloseStatus.NOT_ACCEPTABLE.withReason("认证失败: 缺少令牌"));
+                return;
+            }
+            
+            System.out.println("提取的令牌: " + (token.length() > 20 ? token.substring(0, 20) + "..." : token));
+            
+            if (validateToken(token)) {
+                System.out.println("新的WebSocket连接到服务器 " + serverName + ": " + session.getId());
+                serverSessions.computeIfAbsent(serverName, k -> new CopyOnWriteArrayList<>()).add(session);
+                
+                // 发送连接成功的确认消息
+                sendMessageToSession(session, "[INFO] WebSocket连接已建立，正在连接到 " + serverName + " 控制台...");
+            } else {
+                System.err.println("WebSocket连接认证失败: 令牌验证失败");
+                session.close(CloseStatus.NOT_ACCEPTABLE.withReason("认证失败: 令牌无效"));
+                return;
+            }
+        } catch (Exception e) {
+            System.err.println("WebSocket连接建立时发生异常: " + e.getMessage());
+            e.printStackTrace();
+            try {
+                session.close(CloseStatus.SERVER_ERROR.withReason("服务器错误: " + e.getMessage()));
+            } catch (Exception closeException) {
+                System.err.println("关闭WebSocket连接时出错: " + closeException.getMessage());
+            }
         }
     }
 
@@ -66,8 +87,9 @@ public class LogWebSocketHandler extends TextWebSocketHandler {
         
         // 解析客户端发送的命令
         try {
-            Map<String, String> commandData = objectMapper.readValue(payload, Map.class);
-            String command = commandData.get("command");
+            @SuppressWarnings("unchecked")
+            Map<String, Object> commandData = objectMapper.readValue(payload, Map.class);
+            String command = commandData.get("command") != null ? commandData.get("command").toString() : null;
 
             if (command != null && !command.trim().isEmpty()) {
                 // 将命令发送到对应的服务器实例
@@ -108,15 +130,34 @@ public class LogWebSocketHandler extends TextWebSocketHandler {
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws Exception {
         // 从会话列表中移除断开的连接
-        for (List<WebSocketSession> sessions : serverSessions.values()) {
-            sessions.remove(session);
+        for (Map.Entry<String, List<WebSocketSession>> entry : serverSessions.entrySet()) {
+            List<WebSocketSession> sessions = entry.getValue();
+            if (sessions != null && sessions.remove(session)) {
+                System.out.println("从服务器 '" + entry.getKey() + "' 的会话列表中移除连接: " + session.getId());
+                
+                // 如果该服务器的会话列表为空，可以选择保留或移除
+                if (sessions.isEmpty()) {
+                    System.out.println("服务器 '" + entry.getKey() + "' 的所有WebSocket连接已断开");
+                }
+            }
         }
-        System.out.println("WebSocket连接关闭: " + session.getId() + ", 状态: " + status);
+        System.out.println("WebSocket连接关闭: " + session.getId() + ", 状态码: " + status.getCode() + ", 原因: " + status.getReason());
     }
 
     @Override
     public void handleTransportError(WebSocketSession session, Throwable exception) throws Exception {
         System.err.println("WebSocket传输错误: " + exception.getMessage());
+        exception.printStackTrace();
+        
+        // 尝试发送错误消息到客户端
+        try {
+            if (session.isOpen()) {
+                sendMessageToSession(session, "[ERROR] WebSocket传输错误: " + exception.getMessage());
+            }
+        } catch (Exception e) {
+            System.err.println("发送错误消息失败: " + e.getMessage());
+        }
+        
         super.handleTransportError(session, exception);
     }
 
@@ -154,6 +195,7 @@ public class LogWebSocketHandler extends TextWebSocketHandler {
     private boolean validateToken(String token) {
         try {
             if (token == null || token.isEmpty()) {
+                System.err.println("令牌验证失败: 令牌为空");
                 return false;
             }
 
@@ -162,26 +204,49 @@ public class LogWebSocketHandler extends TextWebSocketHandler {
                 token = token.substring(7);
             }
 
-            String username = jwtUtil.extractUsername(token);
-            if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                // 加载用户详细信息
-                org.springframework.security.core.userdetails.User userDetails = 
-                    (org.springframework.security.core.userdetails.User) userDetailsService.loadUserByUsername(username);
+            // URL解码token（如果被编码了）
+            try {
+                token = URLDecoder.decode(token, StandardCharsets.UTF_8.name());
+            } catch (Exception e) {
+                // 如果解码失败，使用原始token
+            }
 
-                // 验证令牌
-                if (jwtUtil.validateToken(token, username)) {
+            String username = jwtUtil.extractUsername(token);
+            if (username == null || username.isEmpty()) {
+                System.err.println("令牌验证失败: 无法提取用户名");
+                return false;
+            }
+
+            // 验证令牌
+            boolean isValid = jwtUtil.validateToken(token, username);
+            if (!isValid) {
+                System.err.println("令牌验证失败: 令牌无效或已过期");
+                return false;
+            }
+
+            // 如果SecurityContext中没有认证信息，设置它
+            if (SecurityContextHolder.getContext().getAuthentication() == null) {
+                try {
+                    // 加载用户详细信息
+                    org.springframework.security.core.userdetails.UserDetails userDetails = 
+                        userDetailsService.loadUserByUsername(username);
+
                     // 设置认证信息
                     UsernamePasswordAuthenticationToken authentication = 
                         new UsernamePasswordAuthenticationToken(
                             userDetails, null, userDetails.getAuthorities());
-                    // 不设置details，因为在WebSocket上下文中可能没有HTTP请求
                     SecurityContextHolder.getContext().setAuthentication(authentication);
-                    return true;
+                } catch (Exception e) {
+                    System.err.println("设置认证信息时出错: " + e.getMessage());
+                    // 即使设置认证信息失败，如果token有效，仍然允许连接
                 }
             }
-            return false;
+
+            System.out.println("令牌验证成功: 用户 " + username);
+            return true;
         } catch (Exception e) {
-            System.err.println("令牌验证失败: " + e.getMessage());
+            System.err.println("令牌验证异常: " + e.getMessage());
+            e.printStackTrace();
             return false;
         }
     }
@@ -200,7 +265,12 @@ public class LogWebSocketHandler extends TextWebSocketHandler {
                     if ("logs".equals(segs[i]) && i + 1 < segs.length) {
                         String candidate = segs[i + 1];
                         if (candidate != null && !candidate.isEmpty()) {
-                            return candidate;
+                            // URL解码服务器名称
+                            try {
+                                return URLDecoder.decode(candidate, StandardCharsets.UTF_8.name());
+                            } catch (Exception e) {
+                                return candidate;
+                            }
                         }
                     }
                 }
@@ -208,11 +278,16 @@ public class LogWebSocketHandler extends TextWebSocketHandler {
                 for (int i = segs.length - 1; i >= 0; i--) {
                     String s = segs[i];
                     if (s != null && !s.isEmpty() && !"info".equals(s)) {
-                        return s;
+                        try {
+                            return URLDecoder.decode(s, StandardCharsets.UTF_8.name());
+                        } catch (Exception e) {
+                            return s;
+                        }
                     }
                 }
             }
         } catch (Exception e) {
+            System.err.println("解析URI时出错: " + e.getMessage());
             // 回退到旧解析方式
             String[] parts = uri.split("/");
             if (parts.length >= 4) {
@@ -220,9 +295,14 @@ public class LogWebSocketHandler extends TextWebSocketHandler {
                 if (serverNamePart.contains("?")) {
                     serverNamePart = serverNamePart.split("\\?")[0];
                 }
-                return serverNamePart;
+                try {
+                    return URLDecoder.decode(serverNamePart, StandardCharsets.UTF_8.name());
+                } catch (Exception decodeException) {
+                    return serverNamePart;
+                }
             }
         }
+        System.err.println("无法从URI提取服务器名称: " + uri);
         return "unknown";
     }
 

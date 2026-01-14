@@ -96,8 +96,24 @@ function getCurrentUser() {
  * @returns {string}
  */
 function buildWebSocketUrl(serverName) {
+    if (!authToken) {
+        console.error('无法构建WebSocket URL: 认证令牌不存在');
+        throw new Error('认证令牌不存在，请先登录');
+    }
+    
+    if (!serverName || serverName.trim() === '') {
+        console.error('无法构建WebSocket URL: 服务器名称为空');
+        throw new Error('服务器名称不能为空');
+    }
+    
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    return `${protocol}//${window.location.host}/ws/logs/${serverName}?token=${encodeURIComponent(authToken)}`;
+    const host = window.location.host;
+    const encodedServerName = encodeURIComponent(serverName);
+    const encodedToken = encodeURIComponent(authToken);
+    
+    const url = `${protocol}//${host}/ws/logs/${encodedServerName}?token=${encodedToken}`;
+    console.log('构建WebSocket URL:', url.replace(encodedToken, '***'));
+    return url;
 }
 
 /**
@@ -142,7 +158,13 @@ async function apiRegister(username, email, password) {
 async function apiLoadServers() {
     const response = await authenticatedFetch('/api/servers/');
     if (!response) return [];
-    return response.json();
+    const data = await response.json();
+    // 支持新的统一响应格式
+    if (data.success !== undefined) {
+        return data.data || [];
+    }
+    // 兼容旧格式
+    return Array.isArray(data) ? data : [];
 }
 
 /**
@@ -152,7 +174,13 @@ async function apiLoadServers() {
 async function apiLoadRunningServers() {
     const response = await authenticatedFetch('/api/servers/running');
     if (!response) return {};
-    return response.json();
+    const data = await response.json();
+    // 支持新的统一响应格式
+    if (data.success !== undefined) {
+        return data.data || {};
+    }
+    // 兼容旧格式
+    return data || {};
 }
 
 /**
@@ -170,7 +198,13 @@ async function apiStartServer(serverName, launchMode = 1) {
         })
     });
     if (!response) return null;
-    return response.text();
+    const data = await response.json();
+    // 支持新的统一响应格式
+    if (data.success !== undefined) {
+        return data.success ? data.message : data.error;
+    }
+    // 兼容旧格式（纯文本）
+    return data;
 }
 
 /**
@@ -183,7 +217,13 @@ async function apiStopServer(serverName) {
         method: 'POST'
     });
     if (!response) return null;
-    return response.text();
+    const data = await response.json();
+    // 支持新的统一响应格式
+    if (data.success !== undefined) {
+        return data.success ? data.message : data.error;
+    }
+    // 兼容旧格式
+    return data;
 }
 
 /**
@@ -196,7 +236,13 @@ async function apiForceStopServer(serverName) {
         method: 'POST'
     });
     if (!response) return null;
-    return response.text();
+    const data = await response.json();
+    // 支持新的统一响应格式
+    if (data.success !== undefined) {
+        return data.success ? data.message : data.error;
+    }
+    // 兼容旧格式
+    return data;
 }
 
 /**
@@ -211,7 +257,13 @@ async function apiDeleteServer(serverName, deleteFiles = true) {
         body: JSON.stringify({ deleteFiles: deleteFiles })
     });
     if (!response) return null;
-    return response.text();
+    const data = await response.json();
+    // 支持新的统一响应格式
+    if (data.success !== undefined) {
+        return data.success ? data.message : data.error;
+    }
+    // 兼容旧格式
+    return data;
 }
 
 /**
@@ -225,5 +277,11 @@ async function apiCreateServer(serverData) {
         body: JSON.stringify(serverData)
     });
     if (!response) return null;
-    return response.text();
+    const data = await response.json();
+    // 支持新的统一响应格式
+    if (data.success !== undefined) {
+        return data.success ? data.message : data.error;
+    }
+    // 兼容旧格式
+    return data;
 }

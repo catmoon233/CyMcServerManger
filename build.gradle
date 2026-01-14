@@ -27,6 +27,16 @@ version '2.0'
 
 repositories {
     mavenCentral()
+    // 添加阿里云镜像以加速依赖下载（可选，如果Maven Central较慢）
+    maven { 
+        url 'https://maven.aliyun.com/repository/public'
+        name 'AliyunMaven'
+    }
+    // 备用镜像
+    maven { 
+        url 'https://maven.aliyun.com/repository/central'
+        name 'AliyunCentral'
+    }
 }
 
 dependencies {
@@ -44,10 +54,26 @@ dependencies {
     implementation 'io.jsonwebtoken:jjwt-impl:0.11.5'
     implementation 'io.jsonwebtoken:jjwt-jackson:0.11.5'
     
-    // H2 Database for demonstration (you can replace with your preferred DB)
+    // H2 Database - 本地文件数据库（持久化存储）
     runtimeOnly 'com.h2database:h2'
-    
+}
 
+// 自动下载依赖任务
+task downloadDependencies {
+    description = '下载所有项目依赖'
+    group = 'build setup'
+    doLast {
+        println '正在下载依赖...'
+        // 解析所有配置的依赖
+        configurations.findAll { it.canBeResolved }.each { configuration ->
+            try {
+                configuration.resolve()
+            } catch (Exception e) {
+                // 忽略无法解析的配置
+            }
+        }
+        println '依赖下载完成！'
+    }
 }
 
 task runServer(type: JavaExec) {
@@ -58,13 +84,54 @@ task runServer(type: JavaExec) {
         args project.args.split('\\s+')
     }
 }
+// 配置JAR任务
 jar {
+    enabled = true
+    archiveClassifier = '' // 不使用分类器，直接覆盖默认JAR
     manifest {
         attributes(
-                'Main-Class': 'exmo.cy.web.WebApplication'
+                'Main-Class': 'exmo.cy.web.WebApplication',
+                'Implementation-Title': project.name,
+                'Implementation-Version': project.version
         )
     }
 }
+
+// 配置Shadow JAR（Fat JAR，包含所有依赖）
+shadowJar {
+    archiveBaseName = 'CyMcServerManger'
+    archiveVersion = project.version
+    archiveClassifier = 'all'
+    manifest {
+        attributes(
+                'Main-Class': 'exmo.cy.web.WebApplication',
+                'Implementation-Title': project.name,
+                'Implementation-Version': project.version
+        )
+    }
+    // 排除不必要的文件
+    exclude 'META-INF/*.SF'
+    exclude 'META-INF/*.DSA'
+    exclude 'META-INF/*.RSA'
+    
+    // 关键：合并Spring Boot的配置文件，确保自动配置正常工作
+    mergeServiceFiles()
+    
+    // 合并Spring的factories文件
+    append 'META-INF/spring.handlers'
+    append 'META-INF/spring.schemas'
+    append 'META-INF/spring.tooling'
+    append 'META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports'
+    append 'META-INF/spring/org.springframework.boot.actuate.autoconfigure.web.ManagementContextConfiguration.imports'
+    
+    // 使用transform处理spring.factories
+    transform(com.github.jengelman.gradle.plugins.shadow.transformers.AppendingTransformer) {
+        resource = 'META-INF/spring.factories'
+    }
+}
+
+// 确保 build 任务包含 shadowJar
+build.dependsOn shadowJar
 
 // 确保 startShadowScripts 依赖于 shadowJar（Shadow 插件默认生成的任务）
 tasks.startShadowScripts {

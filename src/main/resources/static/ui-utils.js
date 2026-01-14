@@ -7,15 +7,32 @@
  * 显示通知
  * @param {string} message - 通知消息
  * @param {string} type - 通知类型 (success, error, info)
+ * @param {number} duration - 显示时长（毫秒），默认3000
  */
-function showNotification(message, type = 'info') {
+function showNotification(message, type = 'info', duration = 3000) {
     const notification = document.getElementById('notification');
-    notification.textContent = message;
+    if (!notification) return;
+    
+    // 如果消息太长，截断并添加省略号
+    const maxLength = 100;
+    const displayMessage = message.length > maxLength ? message.substring(0, maxLength) + '...' : message;
+    
+    notification.textContent = displayMessage;
     notification.className = `notification ${type} show`;
+    notification.title = message; // 完整消息作为提示
+    
+    // 根据类型调整显示时长
+    if (type === 'error') {
+        duration = 5000; // 错误消息显示更久
+    } else if (type === 'success') {
+        duration = 3000;
+    } else {
+        duration = 3000;
+    }
     
     setTimeout(() => {
         notification.classList.remove('show');
-    }, 3000);
+    }, duration);
 }
 
 /**
@@ -25,6 +42,9 @@ function showLoginPage() {
     document.getElementById('loginPage').style.display = 'flex';
     document.getElementById('registerPage').style.display = 'none';
     document.getElementById('mainApp').style.display = 'none';
+    
+    // 重置密码输入框状态
+    resetPasswordInputs();
 }
 
 /**
@@ -34,13 +54,63 @@ function showRegisterPage() {
     document.getElementById('loginPage').style.display = 'none';
     document.getElementById('registerPage').style.display = 'flex';
     document.getElementById('mainApp').style.display = 'none';
+    
+    // 重置密码输入框状态
+    resetPasswordInputs();
+}
+
+/**
+ * 重置密码输入框状态（隐藏密码并重置切换按钮）
+ */
+function resetPasswordInputs() {
+    // 重置登录页面的密码输入框
+    const loginPasswordInput = document.getElementById('password');
+    const loginPasswordToggle = document.getElementById('passwordToggle');
+    if (loginPasswordInput && loginPasswordToggle) {
+        loginPasswordInput.type = 'password';
+        const loginIcon = loginPasswordToggle.querySelector('i');
+        if (loginIcon) {
+            loginIcon.classList.remove('fa-eye-slash');
+            loginIcon.classList.add('fa-eye');
+        }
+        loginPasswordToggle.classList.remove('active');
+        loginPasswordToggle.setAttribute('aria-label', '显示密码');
+    }
+    
+    // 重置注册页面的密码输入框
+    const regPasswordInput = document.getElementById('regPassword');
+    const regPasswordToggle = document.getElementById('regPasswordToggle');
+    if (regPasswordInput && regPasswordToggle) {
+        regPasswordInput.type = 'password';
+        const regIcon = regPasswordToggle.querySelector('i');
+        if (regIcon) {
+            regIcon.classList.remove('fa-eye-slash');
+            regIcon.classList.add('fa-eye');
+        }
+        regPasswordToggle.classList.remove('active');
+        regPasswordToggle.setAttribute('aria-label', '显示密码');
+    }
+    
+    // 重置确认密码输入框
+    const regConfirmPasswordInput = document.getElementById('regConfirmPassword');
+    const regConfirmPasswordToggle = document.getElementById('regConfirmPasswordToggle');
+    if (regConfirmPasswordInput && regConfirmPasswordToggle) {
+        regConfirmPasswordInput.type = 'password';
+        const confirmIcon = regConfirmPasswordToggle.querySelector('i');
+        if (confirmIcon) {
+            confirmIcon.classList.remove('fa-eye-slash');
+            confirmIcon.classList.add('fa-eye');
+        }
+        regConfirmPasswordToggle.classList.remove('active');
+        regConfirmPasswordToggle.setAttribute('aria-label', '显示密码');
+    }
 }
 
 /**
  * 显示主应用
  */
 let serverRefreshInterval = null;
-function showMainApp() {
+async function showMainApp() {
     document.getElementById('loginPage').style.display = 'none';
     document.getElementById('registerPage').style.display = 'none';
     document.getElementById('mainApp').style.display = 'block';
@@ -50,6 +120,11 @@ function showMainApp() {
     if (currentUser) {
         document.getElementById('usernameDisplay').textContent = currentUser;
         document.getElementById('userAvatar').textContent = currentUser.charAt(0).toUpperCase();
+    }
+    
+    // 初始化管理员面板
+    if (typeof initializeAdminPanel === 'function') {
+        await initializeAdminPanel();
     }
     
     // 开始加载服务器数据（仅加载一次）
@@ -102,14 +177,23 @@ function initializeTheme() {
  * 打开创建服务器模态框
  */
 function openCreateModal() {
-    document.getElementById('createModal').style.display = 'block';
+    const modal = document.getElementById('createModal');
+    modal.style.display = 'flex';
+    modal.classList.add('show');
+    // 聚焦第一个输入框
+    setTimeout(() => {
+        const firstInput = modal.querySelector('input[type="text"]');
+        if (firstInput) firstInput.focus();
+    }, 100);
 }
 
 /**
  * 关闭创建服务器模态框
  */
 function closeCreateModal() {
-    document.getElementById('createModal').style.display = 'none';
+    const modal = document.getElementById('createModal');
+    modal.style.display = 'none';
+    modal.classList.remove('show');
     document.getElementById('createForm').reset();
 }
 

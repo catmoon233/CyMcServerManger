@@ -24,6 +24,74 @@ function initializeAuthHandlers() {
         e.preventDefault();
         showLoginPage();
     });
+    
+    // 初始化密码显示/隐藏功能
+    initializePasswordToggle();
+}
+
+/**
+ * 初始化密码显示/隐藏切换功能
+ */
+function initializePasswordToggle() {
+    // 登录页面的密码切换
+    const loginPasswordInput = document.getElementById('password');
+    const loginPasswordToggle = document.getElementById('passwordToggle');
+    
+    if (loginPasswordInput && loginPasswordToggle) {
+        loginPasswordToggle.addEventListener('click', function() {
+            togglePasswordVisibility(loginPasswordInput, loginPasswordToggle);
+        });
+    }
+    
+    // 注册页面的密码切换
+    const regPasswordInput = document.getElementById('regPassword');
+    const regPasswordToggle = document.getElementById('regPasswordToggle');
+    
+    if (regPasswordInput && regPasswordToggle) {
+        regPasswordToggle.addEventListener('click', function() {
+            togglePasswordVisibility(regPasswordInput, regPasswordToggle);
+        });
+    }
+    
+    // 注册页面的确认密码切换
+    const regConfirmPasswordInput = document.getElementById('regConfirmPassword');
+    const regConfirmPasswordToggle = document.getElementById('regConfirmPasswordToggle');
+    
+    if (regConfirmPasswordInput && regConfirmPasswordToggle) {
+        regConfirmPasswordToggle.addEventListener('click', function() {
+            togglePasswordVisibility(regConfirmPasswordInput, regConfirmPasswordToggle);
+        });
+    }
+}
+
+/**
+ * 切换密码显示/隐藏
+ * @param {HTMLInputElement} passwordInput - 密码输入框元素
+ * @param {HTMLButtonElement} toggleBtn - 切换按钮元素
+ */
+function togglePasswordVisibility(passwordInput, toggleBtn) {
+    if (!passwordInput || !toggleBtn) return;
+    
+    const icon = toggleBtn.querySelector('i');
+    
+    if (passwordInput.type === 'password') {
+        // 显示密码
+        passwordInput.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+        toggleBtn.classList.add('active');
+        toggleBtn.setAttribute('aria-label', '隐藏密码');
+    } else {
+        // 隐藏密码
+        passwordInput.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+        toggleBtn.classList.remove('active');
+        toggleBtn.setAttribute('aria-label', '显示密码');
+    }
+    
+    // 保持焦点在输入框
+    passwordInput.focus();
 }
 
 /**
@@ -43,8 +111,13 @@ async function handleLogin(e) {
             // 保存认证信息
             setAuthInfo(data.token, data.username);
             
+            // 保存用户角色
+            if (data.role) {
+                localStorage.setItem('userRole', data.role);
+            }
+            
             showNotification('登录成功！', 'success');
-            showMainApp();
+            await showMainApp();
         } else {
             showNotification(data?.error || '登录失败', 'error');
         }
@@ -103,11 +176,11 @@ function logout() {
  * 初始化认证状态
  * 在页面加载时检查用户是否已登录
  */
-function initializeAuthState() {
+async function initializeAuthState() {
     const token = getAuthToken();
     if (token) {
         // 用户已认证，显示主应用
-        showMainApp();
+        await showMainApp();
     } else {
         // 用户未认证，显示登录页
         showLoginPage();
