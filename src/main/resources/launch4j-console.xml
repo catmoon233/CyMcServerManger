@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch4jConfig>
+  <dontWrapJar>false</dontWrapJar>
+  <headerType>console</headerType>
+  <jar>${project.basedir}/build/libs/CyMcServerManger-${version}-console-all.jar</jar>
+  <outfile>${project.basedir}/build/exe/CyMcServerManagerConsole.exe</outfile>
+  <errTitle>CyMc Server Manager</errTitle>
+  <cmdLine></cmdLine>
+  <chdir>.</chdir>
+  <priority>normal</priority>
+  <downloadUrl>http://java.com/download</downloadUrl>
+  <supportUrl>https://github.com/CyMcServerManager/support</supportUrl>
+  <stayAlive>false</stayAlive>
+  <restartOnCrash>false</restartOnCrash>
+  <manifest>${project.basedir}/src/main/resources/app.manifest</manifest>
+  <icon>${project.basedir}/src/main/resources/server-icon.ico</icon>
+  <jre>
+    <path>jre</path>
+    <bundledJre64Bit>false</bundledJre64Bit>
+    <minVersion>11</minVersion>
+    <maxVersion>20</maxVersion>
+    <initialHeapSize>256</initialHeapSize>
+    <maxHeapSize>2048</maxHeapSize>
+    <opt>-Dfile.encoding=UTF-8</opt>
+    <opt>-Xmx2048m</opt>
+    <opt>-Xms256m</opt>
+  </jre>
+  <versionInfo>
+    <fileVersion>${version}.0</fileVersion>
+    <txtFileVersion>${version}</txtFileVersion>
+    <fileDescription>CyMc Server Manager Console Interface</fileDescription>
+    <copyright>Copyright (C) 2023 CyMc</copyright>
+    <productVersion>${version}.0</productVersion>
+    <txtProductVersion>${version}</txtProductVersion>
+    <productName>CyMc Server Manager</productName>
+    <companyName>CyMc</companyName>
+    <internalName>CyMcServerManagerConsole</internalName>
+    <originalFilename>CyMcServerManagerConsole.exe</originalFilename>
+  </versionInfo>
+</launch4jConfig>

@@ -64,7 +64,7 @@ public class CommandHandler {
                 }
                 
                 // 解析并执行命令
-                executeCommand(input);
+                commandManager.executeCommand(input);
                 
             } catch (Exception e) {
                 Logger.error("处理命令时发生错误", e);
@@ -85,47 +85,47 @@ public class CommandHandler {
         System.out.println(ConsoleColor.colorize(ConsoleColor.GREEN, 
             "================================="));
     }
-
-    /**
-     * 执行命令
-     * @param input 用户输入
-     */
-    private void executeCommand(String input) {
-        String[] parts = input.split("\\s+");
-        String commandName = parts[0].toLowerCase();
-        String[] args = new String[parts.length - 1];
-        System.arraycopy(parts, 1, args, 0, parts.length - 1);
-
-        // 彩色输出命令执行信息
-        System.out.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_BLUE, 
-            "执行命令: " + commandName));
-
-        if ("exit".equals(commandName) || "quit".equals(commandName)) {
-            exit();
-            return;
-        }
-
-        CommandInterface command = commandManager.getCommands().get(commandName);
-        if (command != null) {
-            try {
-                boolean success = command.execute(args);
-                if (success) {
-                    System.out.println(ConsoleColor.colorize(ConsoleColor.GREEN, 
-                        "命令执行成功"));
-                } else {
-                    System.out.println(ConsoleColor.colorize(ConsoleColor.RED, 
-                        "命令执行失败"));
-                }
-            } catch (Exception e) {
-                Logger.error("执行命令 '" + commandName + "' 时发生错误", e);
-            }
-        } else {
-            System.out.println(ConsoleColor.colorize(ConsoleColor.RED, 
-                "未知命令: " + commandName));
-            System.out.println(ConsoleColor.colorize(ConsoleColor.YELLOW, 
-                "输入 'help' 查看可用命令"));
-        }
-    }
+//
+//    /**
+//     * 执行命令
+//     * @param input 用户输入
+//     */
+//    private void executeCommand(String input) {
+//        String[] parts = input.split("\\s+");
+//        String commandName = parts[0].toLowerCase();
+//        String[] args = new String[parts.length - 1];
+//        System.arraycopy(parts, 1, args, 0, parts.length - 1);
+//
+//        // 彩色输出命令执行信息
+//        System.out.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_BLUE,
+//            "执行命令: " + commandName));
+//
+//        if ("exit".equals(commandName) || "quit".equals(commandName)) {
+//            exit();
+//            return;
+//        }
+//
+//        CommandInterface command = commandManager.getCommands().get(commandName);
+//        if (command != null) {
+//            try {
+//                boolean success = command.execute(args);
+//                if (success) {
+//                    System.out.println(ConsoleColor.colorize(ConsoleColor.GREEN,
+//                        "命令执行成功"));
+//                } else {
+//                    System.out.println(ConsoleColor.colorize(ConsoleColor.RED,
+//                        "命令执行失败"));
+//                }
+//            } catch (Exception e) {
+//                Logger.error("执行命令 '" + commandName + "' 时发生错误", e);
+//            }
+//        } else {
+//            System.out.println(ConsoleColor.colorize(ConsoleColor.RED,
+//                "未知命令: " + commandName));
+//            System.out.println(ConsoleColor.colorize(ConsoleColor.YELLOW,
+//                "输入 'help' 查看可用命令"));
+//        }
+//    }
 
     /**
      * 退出程序

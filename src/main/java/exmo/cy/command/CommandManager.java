@@ -7,6 +7,7 @@ import exmo.cy.model.ServerInstance;
 import exmo.cy.scheduler.TaskScheduler;
 import exmo.cy.service.ServerGroupService;
 import exmo.cy.service.ServerService;
+import exmo.cy.util.ConsoleColor;
 import exmo.cy.util.Logger;
 
 import java.lang.reflect.Method;
@@ -67,6 +68,7 @@ public class CommandManager {
         registerCommand(new GroupCommand(serverGroupService, serverService));
         registerCommand(new CopyCommand(serverService));
         registerCommand(new StopCommand(serverService));
+        registerCommand(new ExitCommand(serverService));
         registerCommand(new EStopCommand(serverService));
         registerCommand(new ForceStopCommand(serverService));
         registerCommand(new ResourceMonitorCommand(serverService));
@@ -78,6 +80,7 @@ public class CommandManager {
         registerCommand(new HealthCheckCommand(serverService));
         registerCommand(new ScheduleCommand(serverService, taskScheduler));
         registerCommand(new AdvancedScheduleCommand(serverService, taskScheduler));
+        registerCommand(new SendCommand(serverService));
     }
     
     /**
@@ -111,10 +114,11 @@ public class CommandManager {
      * @param input 用户输入
      * @return 是否继续运行
      */
+
     public boolean executeCommand(String input) {
         String[] parts = input.trim().split("\\s+");
         if (parts.length == 0 || parts[0].isEmpty()) {
-            Logger.println("请输入有效命令，输入 'help' 查看可用命令");
+            Logger.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_CYAN, "§c请输入有效命令，输入 'help' 查看可用命令"));
             return true;
         }
         
@@ -124,7 +128,17 @@ public class CommandManager {
         // 检查别名
         String actualCommandName = commandAliases.get(commandName);
         if (actualCommandName == null) {
-            actualCommandName = commandName;
+            // 尝试首字母大写形式
+            String capitalizedCommandName = capitalize(commandName);
+            actualCommandName = commandAliases.get(capitalizedCommandName);
+            if (actualCommandName == null) {
+                // 尝试全大写形式
+                String upperCaseCommandName = commandName.toUpperCase();
+                actualCommandName = commandAliases.get(upperCaseCommandName);
+                if (actualCommandName == null) {
+                    actualCommandName = commandName;
+                }
+            }
         }
         
         CommandInterface command = commands.get(actualCommandName);
@@ -132,11 +146,11 @@ public class CommandManager {
             try {
                 return command.execute(args);
             } catch (Exception e) {
-                Logger.error("执行命令时出错: " + e.getMessage(), e);
+                Logger.error(ConsoleColor.colorize(ConsoleColor.RED, "执行命令时出错: " + e.getMessage()), e);
                 return true;
             }
         } else {
-            Logger.println("未知命令 '" + commandName + "'。输入 'help' 查看可用命令");
+            Logger.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_CYAN, "未知命令 §e'" + commandName + "'§c。输入 §ahelp §c查看可用命令"));
             return true;
         }
     }

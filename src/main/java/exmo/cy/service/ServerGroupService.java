@@ -3,10 +3,11 @@ package exmo.cy.service;
 import exmo.cy.model.Server;
 import exmo.cy.model.ServerGroup;
 import exmo.cy.util.Logger;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.PostConstruct;
+
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;

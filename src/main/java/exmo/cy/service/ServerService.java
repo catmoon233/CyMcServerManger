@@ -22,8 +22,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.HashSet;
 import java.util.Set;
 
+import jakarta.annotation.PreDestroy;
 import org.springframework.stereotype.Service;
-import javax.annotation.PreDestroy;
+
 
 /**
  * 服务器服务类
@@ -569,5 +570,27 @@ public class ServerService {
      */
     public List<String> getBlockedServers() {
         return new ArrayList<>(blockedServers);
+    }
+    
+    /**
+     * 关闭所有正在运行的服务器
+     */
+    public void shutdownAllServers() {
+        Logger.info("开始关闭所有服务器...");
+        
+        // 获取所有活动服务器的副本以避免并发修改异常
+        Set<String> serverNames = new HashSet<>(activeServers.keySet());
+        
+        for (String serverName : serverNames) {
+            try {
+                Logger.info("正在停止服务器: " + serverName);
+                forceStopServer(serverName);
+                Logger.info("服务器已停止: " + serverName);
+            } catch (ServerOperationException e) {
+                Logger.error("停止服务器失败: " + serverName + ", 错误: " + e.getMessage());
+            }
+        }
+        
+        Logger.info("所有服务器已关闭");
     }
 }

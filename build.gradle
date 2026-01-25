@@ -15,8 +15,8 @@ configurations {
 
 // 设置Java兼容性
 java {
-    sourceCompatibility = JavaVersion.VERSION_11
-    targetCompatibility = JavaVersion.VERSION_11
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
 }
 
 application {
@@ -49,13 +49,20 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     
+    // Jakarta EE API for newer Java versions
+    implementation 'jakarta.persistence:jakarta.persistence-api:3.1.0'
+    implementation 'jakarta.annotation:jakarta.annotation-api:2.1.1'
+    implementation 'org.hibernate.orm:hibernate-core:6.3.1.Final'
+    
     // JWT dependencies
     implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
     implementation 'io.jsonwebtoken:jjwt-impl:0.11.5'
     implementation 'io.jsonwebtoken:jjwt-jackson:0.11.5'
-    
+
+
     // H2 Database - 本地文件数据库（持久化存储）
     runtimeOnly 'com.h2database:h2'
+
 }
 
 // 自动下载依赖任务
@@ -218,6 +225,77 @@ tasks.bootJar {
 // 配置bootRun任务
 tasks.bootRun {
     mainClass = 'exmo.cy.web.WebApplication'
+}
+
+
+// Launch4j配置已移除以解决Java版本兼容性问题
+// 要构建EXE文件，请在兼容的Java环境中启用插件并使用以下配置：
+/*
+// 配置Launch4j插件生成EXE文件
+launch4j {
+    defaults {
+        jreMinVersion = '11'
+        jreMaxVersion = '21'
+        initialHeapSize = 256
+        maxHeapSize = 2048
+        productName = 'CyMc Server Manager'
+        version = project.version
+        textVersion = project.version
+    }
+}
+
+// 配置EXE构建任务
+// Web版本EXE
+task buildWebExe(type: edu.sc.seis.launch4j.tasks.Launch4jTask) {
+    mainClassName = 'exmo.cy.web.WebApplication'
+    outputDir = file('build/exe')
+    headerType = 'gui'
+    jarTask = project.tasks.shadowJar
+    jre {
+        minVersion = '11'
+        maxVersion = '21'
+        initialHeapSize = 256
+        maxHeapSize = 2048
+    }
+    versionInfo {
+        fileDescription = 'CyMc Server Manager Web Interface'
+        productName = 'CyMc Server Manager'
+        fileVersion = project.version
+        txtFileVersion = project.version
+        productVersion = project.version
+        txtProductVersion = project.version
+    }
+}
+
+// 控制台版本EXE
+task buildConsoleExe(type: edu.sc.seis.launch4j.tasks.Launch4jTask) {
+    mainClassName = 'exmo.cy.ServerManagerApp'
+    outputDir = file('build/exe')
+    headerType = 'console'
+    jarTask = project.tasks.consoleShadowJar
+    jre {
+        minVersion = '11'
+        maxVersion = '20'
+        initialHeapSize = 256
+        maxHeapSize = 2048
+    }
+    versionInfo {
+        fileDescription = 'CyMc Server Manager Console Interface'
+        productName = 'CyMc Server Manager'
+        fileVersion = project.version
+        txtFileVersion = project.version
+        productVersion = project.version
+        txtProductVersion = project.version
+    }
+}
+*/
+
+// 为EXE构建创建一个独立的任务，不作为默认构建的一部分
+task exeBuild {
+    doLast {
+        println 'EXE构建任务需要手动运行，并且需要额外的Launch4j工具'
+        println '请使用命令: ./gradlew buildWebExe 或 ./gradlew buildConsoleExe 单独构建EXE'
+    }
 }
 
 // 配置测试任务

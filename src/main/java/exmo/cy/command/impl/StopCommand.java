@@ -13,7 +13,7 @@ import java.util.Map;
 import java.util.Scanner;
 
 @CommandAnnotation(
-    name = "r-stop",
+    name = "n-stop",
     aliases = {"terminate", "stop-server", "ss"},
     description = "正常停止指定服务器"
 )
