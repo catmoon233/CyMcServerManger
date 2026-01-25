@@ -129,12 +129,15 @@ public final class Logger {
         if (level.getLevel() >= currentLevel.getLevel()) {
             String timestamp = LocalDateTime.now().format(TIME_FORMATTER);
             String logMessage = String.format("[%s] [%s] %s", timestamp, level.name(), message);
-            System.out.println(logMessage);
+            
+            // 使用颜色输出日志
+            String coloredLogMessage = ConsoleColor.colorizeLogLevel(level, logMessage);
+            System.out.println(coloredLogMessage);
             
             // 通过WebSocket发送到前端 - 使用当前线程的服务器名称上下文
             try {
                 String contextServerName = getServerNameContext();
-                LogWebSocketHandler.sendLogMessage(contextServerName, logMessage);
+                LogWebSocketHandler.sendLogMessage(contextServerName, logMessage); // 发送原始消息，前端处理颜色
             } catch (Exception e) {
                 // 忽略WebSocket发送错误
             }
@@ -146,7 +149,9 @@ public final class Logger {
      * @param message 消息
      */
     public static void println(String message) {
-        System.out.println(message);
+        // 为普通输出也添加颜色支持
+        String coloredMessage = ConsoleColor.colorize(ConsoleColor.BRIGHT_WHITE, message);
+        System.out.println(coloredMessage);
         System.out.println();
         
         // 通过WebSocket发送到前端 - 使用当前线程的服务器名称上下文
@@ -163,7 +168,9 @@ public final class Logger {
      * @param message 消息
      */
     public static void print(String message) {
-        System.out.print(message);
+        // 为普通输出也添加颜色支持
+        String coloredMessage = ConsoleColor.colorize(ConsoleColor.WHITE, message);
+        System.out.print(coloredMessage);
         
         // 通过WebSocket发送到前端 - 使用当前线程的服务器名称上下文
         try {

@@ -4,6 +4,8 @@ import exmo.cy.command.impl.*;
 import exmo.cy.exception.ServerOperationException;
 import exmo.cy.model.Server;
 import exmo.cy.model.ServerInstance;
+import exmo.cy.scheduler.TaskScheduler;
+import exmo.cy.service.ServerGroupService;
 import exmo.cy.service.ServerService;
 import exmo.cy.util.Logger;
 
@@ -16,13 +18,17 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class CommandManager {
     private final ServerService serverService;
+    private TaskScheduler taskScheduler;
     private final Map<String, CommandInterface> commands;
     private final Map<String, String> commandAliases;
     private final Map<Class<?>, List<RegisteredListener>> eventListeners;
     private ServerInstance attachedServer;
-    
-    public CommandManager(ServerService serverService) {
+    private ServerGroupService serverGroupService;
+
+    public CommandManager(ServerService serverService, ServerGroupService serverGroupService) {
         this.serverService = serverService;
+        this.serverGroupService = serverGroupService;
+        this.taskScheduler = new TaskScheduler(serverService);
         this.commands = new HashMap<>();
         this.commandAliases = new HashMap<>();
         this.eventListeners = new ConcurrentHashMap<>();
@@ -32,22 +38,46 @@ public class CommandManager {
         registerBuiltInCommands();
     }
     
+    public CommandManager(ServerService serverService) {
+        this(serverService, null);
+        this.taskScheduler = new TaskScheduler(serverService);
+    }
+    
+    public void setServerGroupService(exmo.cy.service.ServerGroupService serverGroupService) {
+        this.serverGroupService = serverGroupService;
+    }
+    
     /**
      * 注册内置命令
      */
     private void registerBuiltInCommands() {
         registerCommand(new CreateCommand(serverService));
-        registerCommand(new AddCommand(serverService));
+        registerCommand(new AddCommand(serverService,serverGroupService));
         registerCommand(new SwitchCommand(serverService));
         registerCommand(new StartCommand(serverService));
         registerCommand(new LastCommand(serverService));
-        registerCommand(new HelpCommand());
+        registerCommand(new HelpCommand(this));
         registerCommand(new ListCommand(serverService));
         registerCommand(new MapCommand(serverService));
         registerCommand(new DeleteCommand(serverService));
         registerCommand(new AttachCommand(serverService, this));
         registerCommand(new ListRunningCommand(serverService));
-        registerCommand(new StopServerCommand(serverService));
+        registerCommand(new BlockCommand(serverService));
+        registerCommand(new ConfigCommand(serverService));
+        registerCommand(new GroupCommand(serverGroupService, serverService));
+        registerCommand(new CopyCommand(serverService));
+        registerCommand(new StopCommand(serverService));
+        registerCommand(new EStopCommand(serverService));
+        registerCommand(new ForceStopCommand(serverService));
+        registerCommand(new ResourceMonitorCommand(serverService));
+        registerCommand(new BatchCommand(serverService));
+        registerCommand(new ConfigManageCommand(serverService));
+        registerCommand(new BackupRestoreCommand(serverService));
+        registerCommand(new StatsCommand(serverService));
+        registerCommand(new CleanupCommand(serverService));
+        registerCommand(new HealthCheckCommand(serverService));
+        registerCommand(new ScheduleCommand(serverService, taskScheduler));
+        registerCommand(new AdvancedScheduleCommand(serverService, taskScheduler));
     }
     
     /**
@@ -66,6 +96,7 @@ public class CommandManager {
             for (String alias : annotation.aliases()) {
                 commandAliases.put(alias.toLowerCase(), annotation.name().toLowerCase());
                 commandAliases.put(alias.toUpperCase(), annotation.name().toLowerCase()); // 兼容大写输入
+                commandAliases.put(capitalize(alias.toLowerCase()), annotation.name().toLowerCase()); // 首字母大写
             }
         } else {
             // 对于非注解命令，使用类名作为命令名
@@ -197,5 +228,12 @@ public class CommandManager {
      */
     public Map<String, CommandInterface> getCommands() {
         return new HashMap<>(commands);
+    }
+    
+    private String capitalize(String str) {
+        if (str == null || str.isEmpty()) {
+            return str;
+        }
+        return Character.toUpperCase(str.charAt(0)) + str.substring(1);
     }
 }

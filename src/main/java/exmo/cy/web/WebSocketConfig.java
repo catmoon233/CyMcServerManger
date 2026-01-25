@@ -53,6 +53,7 @@ public class WebSocketConfig implements WebSocketConfigurer {
         handler.jwtUtil = jwtUtil;
         handler.userDetailsService = userDetailsService;
         handler.serverService = serverService; // 注入ServerService
+        handler.setStaticServerService(serverService); // 设置静态ServerService引用
         return handler;
     }
 

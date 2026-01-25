@@ -76,18 +76,66 @@ task downloadDependencies {
     }
 }
 
-task runServer(type: JavaExec) {
+// 添加runConsole任务 - 运行命令行模式
+task runConsole(type: JavaExec) {
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'exmo.cy.ServerManagerApp'
+    // 传递参数给应用程序 - 指定运行命令行模式
+    args '-console'
+}
+
+// 添加runWebServer任务 - 运行Web服务器模式
+task runWebServer(type: JavaExec) {
     classpath = sourceSets.main.runtimeClasspath
     mainClass = 'exmo.cy.web.WebApplication'
-    // 传递参数给应用程序
-    if (project.hasProperty('args')) {
-        args project.args.split('\\s+')
-    }
+    // 传递参数给应用程序 - Web模式不需要特殊参数，Spring Boot会自动运行Web服务
 }
-// 配置JAR任务
+
+// 创建两个不同的JAR文件：一个用于命令行，一个用于Web服务器
+
+// 命令行版本的JAR
+task consoleJar(type: Jar) {
+    archiveBaseName = 'CyMcServerManger-Console'
+    archiveVersion = project.version
+    archiveClassifier = 'console'
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE // 解决重复文件问题
+    manifest {
+        attributes(
+                'Main-Class': 'exmo.cy.ServerManagerApp',
+                'Implementation-Title': project.name,
+                'Implementation-Version': project.version
+        )
+    }
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+    with jar
+}
+
+// Web服务器版本的JAR
+task webJar(type: Jar) {
+    archiveBaseName = 'CyMcServerManger-Web'
+    archiveVersion = project.version
+    archiveClassifier = 'web'
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE // 解决重复文件问题
+    manifest {
+        attributes(
+                'Main-Class': 'exmo.cy.web.WebApplication',
+                'Implementation-Title': project.name,
+                'Implementation-Version': project.version
+        )
+    }
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+    with jar
+}
+
+// 配置JAR任务 - 保持原有行为
 jar {
     enabled = true
-    archiveClassifier = '' // 不使用分类器，直接覆盖默认JAR
+    archiveClassifier = 'common' // 添加分类器，避免与专用JAR冲突
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE // 解决重复文件问题
     manifest {
         attributes(
                 'Main-Class': 'exmo.cy.web.WebApplication',
@@ -97,11 +145,12 @@ jar {
     }
 }
 
-// 配置Shadow JAR（Fat JAR，包含所有依赖）
+// 配置Shadow JAR（Fat JAR，包含所有依赖）- Web版本
 shadowJar {
     archiveBaseName = 'CyMcServerManger'
     archiveVersion = project.version
-    archiveClassifier = 'all'
+    archiveClassifier = 'web-all' // Web全功能版本
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE // 解决重复文件问题
     manifest {
         attributes(
                 'Main-Class': 'exmo.cy.web.WebApplication',
@@ -130,12 +179,45 @@ shadowJar {
     }
 }
 
-// 确保 build 任务包含 shadowJar
-build.dependsOn shadowJar
+// 创建命令行版本的Shadow JAR（不包含Web相关依赖）
+task consoleShadowJar(type: com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar) {
+    archiveBaseName = 'CyMcServerManger'
+    archiveVersion = project.version
+    archiveClassifier = 'console-all' // 命令行全功能版本
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE // 解决重复文件问题
+    manifest {
+        attributes(
+                'Main-Class': 'exmo.cy.ServerManagerApp',
+                'Implementation-Title': project.name,
+                'Implementation-Version': project.version
+        )
+    }
+    from sourceSets.main.output
+    configurations = [project.configurations.runtimeClasspath]
+    // 排除不必要的文件
+    exclude 'META-INF/*.SF'
+    exclude 'META-INF/*.DSA'
+    exclude 'META-INF/*.RSA'
+}
+
+// 确保 build 任务包含所有JAR任务
+build.dependsOn shadowJar, consoleShadowJar, consoleJar, webJar
 
 // 确保 startShadowScripts 依赖于 shadowJar（Shadow 插件默认生成的任务）
 tasks.startShadowScripts {
     dependsOn shadowJar
+}
+
+// 配置bootJar任务
+tasks.bootJar {
+    enabled = true
+    archiveClassifier = 'exec' // 分类器为'exec'，以便与普通jar区分
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE // 解决重复文件问题
+}
+
+// 配置bootRun任务
+tasks.bootRun {
+    mainClass = 'exmo.cy.web.WebApplication'
 }
 
 // 配置测试任务

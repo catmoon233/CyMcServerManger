@@ -13,15 +13,15 @@ import java.util.Map;
 import java.util.Scanner;
 
 @CommandAnnotation(
-    name = "stop-server",
-    aliases = {"ss"},
+    name = "r-stop",
+    aliases = {"terminate", "stop-server", "ss"},
     description = "正常停止指定服务器"
 )
-public class StopServerCommand extends AnnotatedCommand {
+public class StopCommand extends AnnotatedCommand {
     private final ServerService serverService;
     private final Scanner scanner = new Scanner(System.in);
     
-    public StopServerCommand(ServerService serverService) {
+    public StopCommand(ServerService serverService) {
         this.serverService = serverService;
     }
     

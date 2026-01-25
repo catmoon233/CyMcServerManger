@@ -4,8 +4,10 @@ import exmo.cy.command.AnnotatedCommand;
 import exmo.cy.command.CommandAnnotation;
 import exmo.cy.command.CommandExecuteEvent;
 import exmo.cy.command.EventManager;
+import exmo.cy.config.Constants;
 import exmo.cy.model.Server;
 import exmo.cy.service.ServerService;
+import exmo.cy.util.ConsoleColor;
 import exmo.cy.util.JavaPathFinder;
 import exmo.cy.util.Logger;
 
@@ -15,9 +17,13 @@ import java.util.Scanner;
 
 @CommandAnnotation(
     name = "start",
-    aliases = {},
+    aliases = {"st"},
     description = "启动服务器"
 )
+/**
+ * 启动服务器命令
+ * @author CyMcServerManager Team
+ */
 public class StartCommand extends AnnotatedCommand {
     private final ServerService serverService;
     private final Scanner scanner = new Scanner(System.in);
@@ -33,100 +39,165 @@ public class StartCommand extends AnnotatedCommand {
         try {
             List<Server> servers = serverService.getConfigManager().loadServers();
             if (servers.isEmpty()) {
-                Logger.println("错误: 没有可用服务器");
+                System.out.println(ConsoleColor.colorize(ConsoleColor.RED, "错误: 没有可用服务器"));
                 return true;
             }
             
             // 显示服务器列表
-            Logger.println("可用服务器：");
+            System.out.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_GREEN, "可用服务器："));
             for (int i = 0; i < servers.size(); i++) {
                 Server server = servers.get(i);
-                Logger.println((i + 1) + ". " + server.getName());
-                Logger.println("   版本: " + server.getVersion());
-                Logger.println("   描述: " + server.getDescription());
-                Logger.println("   当前地图: " + (server.getMap() != null ? server.getMap() : "未设置"));
+                String serverInfo = (i + 1) + ". " + 
+                    ConsoleColor.colorize(ConsoleColor.BRIGHT_CYAN, server.getName()) + 
+                    " (" + ConsoleColor.colorize(ConsoleColor.BRIGHT_WHITE, server.getVersion()) + 
+                    " | " + ConsoleColor.colorize(ConsoleColor.BRIGHT_YELLOW, server.getDescription()) + ")";
+                System.out.println(serverInfo);
             }
             
-            Logger.print("选择服务器编号: ");
-            int choice = Integer.parseInt(scanner.nextLine()) - 1;
+            System.out.print(ConsoleColor.colorize(ConsoleColor.BRIGHT_BLUE, "选择服务器编号 (输入0返回): "));
+            int choice;
+            try {
+                choice = Integer.parseInt(scanner.nextLine().trim()) - 1;
+            } catch (NumberFormatException e) {
+                System.out.println(ConsoleColor.colorize(ConsoleColor.RED, "错误: 请输入有效的数字"));
+                return true;
+            }
+            
+            if (choice == -1) { // 用户选择返回
+                System.out.println(ConsoleColor.colorize(ConsoleColor.YELLOW, "返回主菜单"));
+                return true;
+            }
+            
             if (choice < 0 || choice >= servers.size()) {
-                Logger.println("错误: 无效的选择");
+                System.out.println(ConsoleColor.colorize(ConsoleColor.RED, "错误: 无效的选择"));
                 return true;
             }
             
             Server selectedServer = servers.get(choice);
             
-            // 选择Java路径
-            String selectedJavaPath = selectJavaPath();
-            
-            // 选择启动模式
-            int mode = selectLaunchMode();
-            
-            // 获取自定义参数（如果是自定义模式）
-            String jvmArgs = null;
-            String serverArgs = null;
-            if (mode == 5) {
-                Logger.print("输入JVM参数(以空格分隔): ");
-                jvmArgs = scanner.nextLine().trim();
-                Logger.print("输入服务器参数(以空格分隔): ");
-                serverArgs = scanner.nextLine().trim();
+            // 检查服务器是否已经在运行
+            if (serverService.getActiveServer(selectedServer.getName()).isPresent()) {
+                System.out.println(ConsoleColor.colorize(ConsoleColor.YELLOW, 
+                    "服务器 " + selectedServer.getName() + " 已经在运行中"));
+                return true;
             }
             
-            // 触发服务器启动事件
-            // eventManager.callEvent(new ServerStartEvent(selectedServer.getName()));
+            // 询问启动模式
+            System.out.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_GREEN, 
+                "\n选择启动模式:"));
+            System.out.println("1. " + ConsoleColor.colorize(ConsoleColor.BRIGHT_WHITE, "核心模式 (推荐)") + 
+                             " - " + ConsoleColor.colorize(ConsoleColor.BRIGHT_BLACK, "标准Minecraft服务器启动"));
+            System.out.println("2. " + ConsoleColor.colorize(ConsoleColor.BRIGHT_WHITE, "模组包模式") + 
+                             " - " + ConsoleColor.colorize(ConsoleColor.BRIGHT_BLACK, "适用于Forge/Fabric模组包"));
+            System.out.println("3. " + ConsoleColor.colorize(ConsoleColor.BRIGHT_WHITE, "基础模式") + 
+                             " - " + ConsoleColor.colorize(ConsoleColor.BRIGHT_BLACK, "最小化参数启动"));
+            System.out.println("4. " + ConsoleColor.colorize(ConsoleColor.BRIGHT_WHITE, "基础模式(修复版)") + 
+                             " - " + ConsoleColor.colorize(ConsoleColor.BRIGHT_BLACK, "包含额外修复参数"));
+            System.out.println("5. " + ConsoleColor.colorize(ConsoleColor.BRIGHT_WHITE, "自定义模式") + 
+                             " - " + ConsoleColor.colorize(ConsoleColor.BRIGHT_BLACK, "使用自定义JVM和服务器参数"));
+            
+            System.out.print(ConsoleColor.colorize(ConsoleColor.BRIGHT_BLUE, "选择启动模式 (1-5): "));
+            int launchMode;
+            try {
+                launchMode = Integer.parseInt(scanner.nextLine().trim());
+            } catch (NumberFormatException e) {
+                System.out.println(ConsoleColor.colorize(ConsoleColor.RED, "错误: 请输入有效的数字"));
+                return true;
+            }
+            
+            if (launchMode < 1 || launchMode > 5) {
+                System.out.println(ConsoleColor.colorize(ConsoleColor.RED, "错误: 无效的启动模式"));
+                return true;
+            }
+            
+            // 将用户选择的模式转换为常量
+            int actualLaunchMode;
+            switch (launchMode) {
+                case 1: actualLaunchMode = Constants.LAUNCH_MODE_CORE; break;
+                case 2: actualLaunchMode = Constants.LAUNCH_MODE_MODPACK; break;
+                case 3: actualLaunchMode = Constants.LAUNCH_MODE_BASIC; break;
+                case 4: actualLaunchMode = Constants.LAUNCH_MODE_BASIC_FIX; break;
+                case 5: actualLaunchMode = Constants.LAUNCH_MODE_CUSTOM; break;
+                default: actualLaunchMode = Constants.LAUNCH_MODE_CORE; break;
+            }
+            
+            String javaPath = null;
+            String jvmArgs = null;
+            String serverArgs = null;
+            
+            // 如果是自定义模式，获取额外参数
+            if (actualLaunchMode == Constants.LAUNCH_MODE_CUSTOM) {
+                System.out.print(ConsoleColor.colorize(ConsoleColor.BRIGHT_BLUE, 
+                    "输入自定义JVM参数 (可选，直接回车跳过): "));
+                jvmArgs = scanner.nextLine().trim();
+                if (jvmArgs.isEmpty()) {
+                    jvmArgs = null;
+                }
+                
+                System.out.print(ConsoleColor.colorize(ConsoleColor.BRIGHT_BLUE, 
+                    "输入自定义服务器参数 (可选，直接回车跳过): "));
+                serverArgs = scanner.nextLine().trim();
+                if (serverArgs.isEmpty()) {
+                    serverArgs = null;
+                }
+            }
+            
+            // 询问是否使用特定的Java路径
+            System.out.print(ConsoleColor.colorize(ConsoleColor.BRIGHT_BLUE, 
+                "使用特定Java路径? (y/N): "));
+            String useSpecificJava = scanner.nextLine().trim().toLowerCase();
+            if ("y".equals(useSpecificJava) || "yes".equals(useSpecificJava)) {
+                System.out.print(ConsoleColor.colorize(ConsoleColor.BRIGHT_BLUE, 
+                    "输入Java路径: "));
+                javaPath = scanner.nextLine().trim();
+            }
+            
+            // 确认启动
+            System.out.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_YELLOW, 
+                "\n即将启动服务器:"));
+            System.out.println("- 服务器: " + ConsoleColor.colorize(ConsoleColor.BRIGHT_CYAN, selectedServer.getName()));
+            System.out.println("- 版本: " + ConsoleColor.colorize(ConsoleColor.BRIGHT_WHITE, selectedServer.getVersion()));
+            System.out.println("- 启动模式: " + getLaunchModeName(actualLaunchMode));
+            if (javaPath != null) {
+                System.out.println("- Java路径: " + ConsoleColor.colorize(ConsoleColor.BRIGHT_WHITE, javaPath));
+            }
+            if (jvmArgs != null) {
+                System.out.println("- JVM参数: " + ConsoleColor.colorize(ConsoleColor.BRIGHT_WHITE, jvmArgs));
+            }
+            if (serverArgs != null) {
+                System.out.println("- 服务器参数: " + ConsoleColor.colorize(ConsoleColor.BRIGHT_WHITE, serverArgs));
+            }
+            
+            System.out.print(ConsoleColor.colorize(ConsoleColor.BRIGHT_YELLOW, 
+                "确认启动? (Y/n): "));
+            String confirm = scanner.nextLine().trim().toLowerCase();
+            if ("n".equals(confirm) || "no".equals(confirm)) {
+                System.out.println(ConsoleColor.colorize(ConsoleColor.YELLOW, "启动已取消"));
+                return true;
+            }
+            
+            // 触发启动前事件
+            eventManager.callEvent(new CommandExecuteEvent("start", args, "console"));
             
             // 启动服务器
-            serverService.startServer(selectedServer, mode, selectedJavaPath, jvmArgs, serverArgs);
-            Logger.println("服务器 " + selectedServer.getName() + " 已启动");
+            serverService.startServerWithDefaults(selectedServer, actualLaunchMode, javaPath);
+            
+            System.out.println(ConsoleColor.colorize(ConsoleColor.GREEN, 
+                "服务器 " + selectedServer.getName() + " 启动请求已发送"));
+                
+            return true;
             
         } catch (Exception e) {
-            Logger.error("启动服务器时出错: " + e.getMessage(), e);
+            System.out.println(ConsoleColor.colorize(ConsoleColor.RED, 
+                "启动服务器时发生错误: " + e.getMessage()));
+            e.printStackTrace();
+            return false;
         }
-        
-        return true;
     }
     
-    /**
-     * 选择Java路径
-     */
-    private String selectJavaPath() {
-        List<String> javaPaths = JavaPathFinder.findAvailableJavaPaths();
-        
-        if (javaPaths.isEmpty()) {
-            Logger.println("未找到可用的Java路径，将使用默认Java");
-            return "java";
-        }
-        
-        Logger.println("可用的Java路径：");
-        Logger.println("0. 默认 (java)");
-        for (int i = 0; i < javaPaths.size(); i++) {
-            Logger.println((i + 1) + ". " + javaPaths.get(i));
-        }
-        
-        Logger.print("请选择Java路径编号: ");
-        int choice = Integer.parseInt(scanner.nextLine());
-        
-        if (choice < 0 || choice > javaPaths.size()) {
-            Logger.println("无效的选择，使用默认Java");
-            return "java";
-        }
-        
-        return choice == 0 ? "java" : javaPaths.get(choice - 1);
-    }
-    
-    /**
-     * 选择启动模式
-     */
-    private int selectLaunchMode() {
-        Logger.println("选择启动模式：");
-        Logger.println("1. 核心版本启动");
-        Logger.println("2. 整合包启动");
-        Logger.println("3. 基础核心版本");
-        Logger.println("4. 基础核心版本(修复)");
-        Logger.println("5. 自定义启动模式");
-        
-        Logger.print("输入选项: ");
-        return Integer.parseInt(scanner.nextLine());
+    @Override
+    public CommandAnnotation getAnnotation() {
+        return getClass().getAnnotation(CommandAnnotation.class);
     }
     
     @Override
@@ -134,8 +205,14 @@ public class StartCommand extends AnnotatedCommand {
         return "启动服务器";
     }
     
-    @Override
-    public CommandAnnotation getAnnotation() {
-        return getClass().getAnnotation(CommandAnnotation.class);
+    private String getLaunchModeName(int launchMode) {
+        switch (launchMode) {
+            case Constants.LAUNCH_MODE_CORE: return ConsoleColor.colorize(ConsoleColor.BRIGHT_GREEN, "核心模式");
+            case Constants.LAUNCH_MODE_MODPACK: return ConsoleColor.colorize(ConsoleColor.BRIGHT_YELLOW, "模组包模式");
+            case Constants.LAUNCH_MODE_BASIC: return ConsoleColor.colorize(ConsoleColor.BRIGHT_WHITE, "基础模式");
+            case Constants.LAUNCH_MODE_BASIC_FIX: return ConsoleColor.colorize(ConsoleColor.BRIGHT_CYAN, "基础模式(修复版)");
+            case Constants.LAUNCH_MODE_CUSTOM: return ConsoleColor.colorize(ConsoleColor.BRIGHT_MAGENTA, "自定义模式");
+            default: return "未知模式";
+        }
     }
 }

@@ -1,6 +1,8 @@
 package exmo.cy.command;
 
+import exmo.cy.service.ServerGroupService;
 import exmo.cy.service.ServerService;
+import exmo.cy.util.ConsoleColor;
 import exmo.cy.util.Logger;
 
 import java.util.Scanner;
@@ -26,53 +28,125 @@ public class CommandHandler {
     }
 
     /**
-     * 处理命令
-     * @param command 命令字符串
-     * @return 是否继续运行
+     * 构造函数，支持ServerGroupService
+     * @param scanner 输入扫描器
+     * @param serverGroupService 服务器群组服务
      */
-    public boolean handleCommand(String command) {
-        if (command.equalsIgnoreCase("stop")) {
-            running = false;
-            return false;
+    public CommandHandler(Scanner scanner, ServerGroupService serverGroupService) {
+        this.scanner = scanner;
+        this.commandManager = new CommandManager(new ServerService(), serverGroupService);
+        this.running = true;
+    }
+
+    /**
+     * 设置服务器群组服务
+     * @param serverGroupService 服务器群组服务
+     */
+    public void setServerGroupService(ServerGroupService serverGroupService) {
+        commandManager.setServerGroupService(serverGroupService);
+    }
+
+    /**
+     * 开始处理命令循环
+     */
+    public void startHandling() {
+        // 显示欢迎信息和命令提示
+        showWelcomeMessage();
+        
+        while (running) {
+            try {
+                // 显示彩色命令提示符
+                System.out.print(ConsoleColor.colorize(ConsoleColor.BRIGHT_CYAN, "\nCyMc> "));
+                String input = scanner.nextLine().trim();
+                
+                if (input.isEmpty()) {
+                    continue;
+                }
+                
+                // 解析并执行命令
+                executeCommand(input);
+                
+            } catch (Exception e) {
+                Logger.error("处理命令时发生错误", e);
+            }
+        }
+    }
+
+    /**
+     * 显示欢迎信息
+     */
+    private void showWelcomeMessage() {
+        System.out.println(ConsoleColor.colorize(ConsoleColor.GREEN, 
+            "\n================================="));
+        System.out.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_GREEN, 
+            "   欢迎使用 CyMc 服务器管理器"));
+        System.out.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_CYAN, 
+            "   输入 'help' 查看可用命令"));
+        System.out.println(ConsoleColor.colorize(ConsoleColor.GREEN, 
+            "================================="));
+    }
+
+    /**
+     * 执行命令
+     * @param input 用户输入
+     */
+    private void executeCommand(String input) {
+        String[] parts = input.split("\\s+");
+        String commandName = parts[0].toLowerCase();
+        String[] args = new String[parts.length - 1];
+        System.arraycopy(parts, 1, args, 0, parts.length - 1);
+
+        // 彩色输出命令执行信息
+        System.out.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_BLUE, 
+            "执行命令: " + commandName));
+
+        if ("exit".equals(commandName) || "quit".equals(commandName)) {
+            exit();
+            return;
         }
 
-        // 如果连接到服务器，则处理服务器控制台命令
-        if (commandManager.isAttached()) {
-            return commandManager.handleConsoleCommand(command);
+        CommandInterface command = commandManager.getCommands().get(commandName);
+        if (command != null) {
+            try {
+                boolean success = command.execute(args);
+                if (success) {
+                    System.out.println(ConsoleColor.colorize(ConsoleColor.GREEN, 
+                        "命令执行成功"));
+                } else {
+                    System.out.println(ConsoleColor.colorize(ConsoleColor.RED, 
+                        "命令执行失败"));
+                }
+            } catch (Exception e) {
+                Logger.error("执行命令 '" + commandName + "' 时发生错误", e);
+            }
+        } else {
+            System.out.println(ConsoleColor.colorize(ConsoleColor.RED, 
+                "未知命令: " + commandName));
+            System.out.println(ConsoleColor.colorize(ConsoleColor.YELLOW, 
+                "输入 'help' 查看可用命令"));
         }
-
-        // 执行普通命令
-        return commandManager.executeCommand(command);
     }
 
     /**
-     * 处理服务器控制台命令
-     * @param input 输入
-     * @return 是否继续运行
+     * 退出程序
      */
-    public boolean handleConsoleCommand(String input) {
-        return commandManager.handleConsoleCommand(input);
+    private void exit() {
+        System.out.println(ConsoleColor.colorize(ConsoleColor.YELLOW, 
+            "正在退出 CyMc 服务器管理器..."));
+        running = false;
     }
 
     /**
-     * 检查是否连接到服务器
-     * @return 如果已连接返回true
+     * 获取命令管理器
+     * @return 命令管理器
      */
-    public boolean isAttached() {
-        return commandManager.isAttached();
+    public CommandManager getCommandManager() {
+        return commandManager;
     }
 
     /**
-     * 获取当前连接的服务器名称
-     * @return 服务器名称
-     */
-    public String getAttachedServerName() {
-        return commandManager.getAttachedServerName();
-    }
-
-    /**
-     * 检查是否仍在运行
-     * @return 如果仍在运行返回true
+     * 检查处理器是否正在运行
+     * @return 如果正在运行返回true
      */
     public boolean isRunning() {
         return running;

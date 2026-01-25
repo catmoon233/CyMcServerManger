@@ -36,6 +36,21 @@ public class LogWebSocketHandler extends TextWebSocketHandler {
     public UserDetailsServiceImpl userDetailsService;
     @org.springframework.beans.factory.annotation.Autowired
     public ServerService serverService; // 添加ServerService依赖
+    
+    // 静态引用以便在静态方法中访问
+    private static LogWebSocketHandler instance;
+    
+    // 静态引用的ServerService，用于日志发送时的屏蔽检查
+    private static ServerService staticServerService;
+    
+    public LogWebSocketHandler() {
+        instance = this;
+    }
+    
+    // Setter方法用于注入ServerService到静态上下文
+    public void setStaticServerService(ServerService serverService) {
+        staticServerService = serverService;
+    }
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
@@ -265,6 +280,23 @@ public class LogWebSocketHandler extends TextWebSocketHandler {
                     if ("logs".equals(segs[i]) && i + 1 < segs.length) {
                         String candidate = segs[i + 1];
                         if (candidate != null && !candidate.isEmpty()) {
+                            // 检查是否是info路径，如果是则再往前一个段
+                            if ("info".equals(candidate)) {
+                                if (i > 0) {
+                                    candidate = segs[i - 1];
+                                }
+                            } else {
+                                // 如果候选者是info，说明前面的才是服务器名称
+                                if ("info".equals(candidate) && i > 0) {
+                                    candidate = segs[i - 1];
+                                }
+                            }
+                            
+                            // 移除可能的查询参数片段
+                            if (candidate.contains("?")) {
+                                candidate = candidate.split("\\?")[0];
+                            }
+                            
                             // URL解码服务器名称
                             try {
                                 return URLDecoder.decode(candidate, StandardCharsets.UTF_8.name());
@@ -278,6 +310,10 @@ public class LogWebSocketHandler extends TextWebSocketHandler {
                 for (int i = segs.length - 1; i >= 0; i--) {
                     String s = segs[i];
                     if (s != null && !s.isEmpty() && !"info".equals(s)) {
+                        // 移除可能的查询参数片段
+                        if (s.contains("?")) {
+                            s = s.split("\\?")[0];
+                        }
                         try {
                             return URLDecoder.decode(s, StandardCharsets.UTF_8.name());
                         } catch (Exception e) {
@@ -328,9 +364,15 @@ public class LogWebSocketHandler extends TextWebSocketHandler {
             return;
         }
         
+        // 检查服务器是否被屏蔽
+        if (staticServerService != null && staticServerService.isServerBlocked(serverName)) {
+            // 服务器被屏蔽，不发送消息
+            return;
+        }
+        
         List<WebSocketSession> sessions = serverSessions.get(serverName);
         if (sessions == null || sessions.isEmpty()) {
-            System.out.println("[以信] 服务器 '" + serverName + "' 消息队列为null或为空，待客户端连接，消息: " + message);
+            // 服务器没有WebSocket连接，不输出调试信息
             return;
         }
         
@@ -373,4 +415,55 @@ public class LogWebSocketHandler extends TextWebSocketHandler {
     public static void removeServerConnections(String serverName) {
         serverSessions.remove(serverName);
     }
+    
+    /**
+     * 发送日志消息给指定服务器的所有连接客户端（带屏蔽检查）
+     * @param serverName 服务器名称
+     * @param message 消息内容
+     * @param serverService 服务器服务实例
+     */
+    public static void sendLogMessageWithBlockCheck(String serverName, String message, ServerService serverService) {
+        if (serverName == null || serverName.isEmpty()) {
+            System.err.println("[警告] sendLogMessageWithBlockCheck: serverName为null或为空，日志: " + message);
+            return;
+        }
+        
+        // 检查服务器是否被屏蔽 - 优先使用传入的serverService，如果为null则使用静态引用
+        ServerService serviceToUse = serverService != null ? serverService : staticServerService;
+        if (serviceToUse != null && serviceToUse.isServerBlocked(serverName)) {
+            // 服务器被屏蔽，不发送消息
+            return;
+        }
+        
+        sendLogMessage(serverName, message);
+    }
+    
+    /**
+     * 发送日志消息给指定服务器的所有连接客户端（带屏蔽检查，使用静态引用）
+     * @param serverName 服务器名称
+     * @param message 消息内容
+     */
+    public static void sendLogMessageWithBlockCheck(String serverName, String message) {
+        if (serverName == null || serverName.isEmpty()) {
+            System.err.println("[警告] sendLogMessageWithBlockCheck: serverName为null或为空，日志: " + message);
+            return;
+        }
+        
+        // 检查服务器是否被屏蔽
+        if (staticServerService != null && staticServerService.isServerBlocked(serverName)) {
+            // 服务器被屏蔽，不发送消息
+            return;
+        }
+        
+        sendLogMessage(serverName, message);
+    }
+    
+//    /**
+//     * 发送日志消息给指定服务器的所有连接客户端（带屏蔽检查，使用静态引用）
+//     * @param serverName 服务器名称
+//     * @param message 消息内容
+//     */
+//    public static void sendLogMessageWithBlockCheck(String serverName, String message) {
+//        sendLogMessageWithBlockCheck(serverName, message, staticServerService);
+//    }
 }

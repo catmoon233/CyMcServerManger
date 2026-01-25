@@ -9,6 +9,7 @@ import exmo.cy.model.ServerInstance;
 import exmo.cy.util.FileUtils;
 import exmo.cy.util.JavaPathFinder;
 import exmo.cy.util.Logger;
+import exmo.cy.scheduler.SchedulerManager;
 import exmo.cy.web.LogWebSocketHandler;
 
 import java.io.File;
@@ -18,8 +19,11 @@ import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.springframework.stereotype.Service;
+import javax.annotation.PreDestroy;
 
 /**
  * 服务器服务类
@@ -31,6 +35,7 @@ public class ServerService {
     private final ConfigurationManager configManager;
     private final ProcessManager processManager;
     private final Map<String, ServerInstance> activeServers;
+    private final Set<String> blockedServers;
     
     /**
      * 构造函数
@@ -39,6 +44,10 @@ public class ServerService {
         this.configManager = new ConfigurationManager();
         this.processManager = new ProcessManager();
         this.activeServers = new ConcurrentHashMap<>();
+        this.blockedServers = new HashSet<>();
+        
+        // 初始化调度管理器
+        SchedulerManager.getInstance().initialize(this);
     }
     
     /**
@@ -52,6 +61,23 @@ public class ServerService {
      * @throws ServerOperationException 如果创建失败
      */
     public Server createServer(String coreName, String serverName, String description, String version, String path) 
+            throws ServerOperationException, ConfigurationException {
+        return createServer(coreName, serverName, description, version, path, null, null);
+    }
+    
+    /**
+     * 创建新服务器
+     * @param coreName 核心文件名
+     * @param serverName 服务器名称
+     * @param description 描述
+     * @param version 版本
+     * @param path 服务器路径
+     * @param defaultJvmArgs 默认JVM参数
+     * @param defaultServerArgs 默认服务器参数
+     * @return 创建的服务器配置
+     * @throws ServerOperationException 如果创建失败
+     */
+    public Server createServer(String coreName, String serverName, String description, String version, String path, String defaultJvmArgs, String defaultServerArgs) 
             throws ServerOperationException, ConfigurationException {
         
         // 检查服务器名称是否已存在
@@ -86,6 +112,8 @@ public class ServerService {
         server.setVersion(resolvedVersion);
         server.setDescription(description);
         server.setModpack(false);
+        server.setDefaultJvmArgs(defaultJvmArgs);
+        server.setDefaultServerArgs(defaultServerArgs);
         
         // 保存配置
         configManager.saveServer(server);
@@ -118,6 +146,22 @@ public class ServerService {
      */
     public Server addExistingServer(String serverPath, String serverName, String version, String description) 
             throws ServerOperationException, ConfigurationException {
+        return addExistingServer(serverPath, serverName, version, description, null, null);
+    }
+    
+    /**
+     * 添加现有服务器目录
+     * @param serverPath 服务器目录路径
+     * @param serverName 服务器名称
+     * @param version 版本
+     * @param description 描述
+     * @param defaultJvmArgs 默认JVM参数
+     * @param defaultServerArgs 默认服务器参数
+     * @return 服务器配置
+     * @throws ServerOperationException 如果添加失败
+     */
+    public Server addExistingServer(String serverPath, String serverName, String version, String description, String defaultJvmArgs, String defaultServerArgs) 
+            throws ServerOperationException, ConfigurationException {
         
         Path serverDir = Paths.get(serverPath);
         if (!Files.exists(serverDir)) {
@@ -135,11 +179,26 @@ public class ServerService {
         server.setVersion(version);
         server.setDescription(description);
         server.setModpack(false);
+        server.setDefaultJvmArgs(defaultJvmArgs);
+        server.setDefaultServerArgs(defaultServerArgs);
         
         configManager.saveServer(server);
         Logger.info("成功添加服务器: " + serverName);
         
         return server;
+    }
+    
+    /**
+     * 启动服务器，使用服务器配置中的默认参数
+     * @param server 服务器配置
+     * @param launchMode 启动模式
+     * @param javaPath Java路径
+     * @return 服务器实例
+     * @throws ServerOperationException 如果启动失败
+     */
+    public ServerInstance startServerWithDefaults(Server server, int launchMode, String javaPath) 
+            throws ServerOperationException, ConfigurationException {
+        return startServer(server, launchMode, javaPath, server.getDefaultJvmArgs(), server.getDefaultServerArgs());
     }
     
     /**
@@ -168,7 +227,7 @@ public class ServerService {
         ProcessBuilder pb = buildProcessCommand(server, launchMode, javaPath, jvmArgs, serverArgs);
         
         // 启动进程
-        ServerInstance instance = processManager.startProcess(pb);
+        ServerInstance instance = processManager.startProcess(pb, this);
         instance.setServer(server);
         
         // 设置服务器名称
@@ -292,10 +351,14 @@ public class ServerService {
                 String message = "服务器 " + instance.getServer().getName() + " 已关闭，退出代码: " + exitCode;
                 Logger.info(message);
                 LogWebSocketHandler.sendLogMessage(instance.getServer().getName(), "[INFO] " + message);
+                // 同时输出到控制台
+                System.out.println("[INFO] " + message);
             } catch (ServerOperationException e) {
                 String errorMessage = "监控服务器进程时出错: " + e.getMessage();
                 Logger.error(errorMessage, e);
                 LogWebSocketHandler.sendLogMessage(instance.getServer().getName(), "[ERROR] " + errorMessage);
+                // 同时输出到控制台
+                System.err.println("[ERROR] " + errorMessage);
             } finally {
                 activeServers.remove(instance.getServer().getName());
             }
@@ -314,6 +377,8 @@ public class ServerService {
         }
         processManager.stopServer(instance);
         LogWebSocketHandler.sendLogMessage(serverName, "[INFO] 服务器正在停止...");
+        // 同时输出到控制台
+        System.out.println("[SERVER " + serverName + " INFO] 服务器正在停止...");
     }
     
     /**
@@ -344,6 +409,8 @@ public class ServerService {
         }
         processManager.sendCommand(instance, command);
         LogWebSocketHandler.sendLogMessage(serverName, "[COMMAND SENT] " + command);
+        // 同时输出到控制台
+        System.out.println("[SERVER " + serverName + " COMMAND SENT] " + command);
     }
     
     /**
@@ -394,11 +461,21 @@ public class ServerService {
                 FileUtils.deleteDirectory(serverDir);
                 Logger.info("已删除服务器目录: " + serverDir);
             }
+
         }
         
         Logger.info("已删除服务器: " + serverName);
     }
-    
+
+    @PreDestroy
+    public void onDestroy() {
+        // 在服务销毁时关闭调度管理器
+        try {
+            exmo.cy.scheduler.SchedulerManager.getInstance().shutdown();
+        } catch (Exception e) {
+            Logger.error("关闭调度管理器时出错: " + e.getMessage(), e);
+        }
+    }
     /**
      * 切换服务器核心版本
      * @param serverName 服务器名称
@@ -457,5 +534,40 @@ public class ServerService {
     
     public ConfigurationManager getConfigManager() {
         return configManager;
+    }
+    
+    /**
+     * 屏蔽指定服务器的控制台输出
+     * @param serverName 服务器名称
+     * @return 如果之前未被屏蔽则返回true，否则返回false
+     */
+    public boolean blockServerOutput(String serverName) {
+        return blockedServers.add(serverName);
+    }
+    
+    /**
+     * 取消屏蔽指定服务器的控制台输出
+     * @param serverName 服务器名称
+     * @return 如果之前被屏蔽则返回true，否则返回false
+     */
+    public boolean unblockServerOutput(String serverName) {
+        return blockedServers.remove(serverName);
+    }
+    
+    /**
+     * 检查服务器是否被屏蔽
+     * @param serverName 服务器名称
+     * @return 如果被屏蔽返回true
+     */
+    public boolean isServerBlocked(String serverName) {
+        return blockedServers.contains(serverName);
+    }
+    
+    /**
+     * 获取被屏蔽的服务器列表
+     * @return 被屏蔽的服务器列表
+     */
+    public List<String> getBlockedServers() {
+        return new ArrayList<>(blockedServers);
     }
 }

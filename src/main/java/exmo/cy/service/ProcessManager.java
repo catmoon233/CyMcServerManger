@@ -2,6 +2,7 @@ package exmo.cy.service;
 
 import exmo.cy.exception.ServerOperationException;
 import exmo.cy.model.ServerInstance;
+import exmo.cy.service.ServerService;
 import exmo.cy.util.Logger;
 import exmo.cy.web.LogWebSocketHandler;
 
@@ -18,15 +19,28 @@ public class ProcessManager {
     
     // 存储服务器名称到实例的映射，用于WebSocket通信
     private final Map<ServerInstance, String> serverNames = new ConcurrentHashMap<>();
+    private ServerService serverService;
     
     /**
      * 启动进程并设置输出监听
      * @param processBuilder 进程构建器
      * @return 服务器实例
-     * @throws ServerOperationException 如果启动失败
+     * @throws ServerOperationException 如果启动败
      */
     public ServerInstance startProcess(ProcessBuilder processBuilder) throws ServerOperationException {
+        return startProcess(processBuilder, null);
+    }
+    
+    /**
+     * 启动进程并设置输出监听
+     * @param processBuilder 进程构建器
+     * @param serverService 服务器服务实例（用于检查屏蔽）
+     * @return 服务器实例
+     * @throws ServerOperationException 如果启动失败
+     */
+    public ServerInstance startProcess(ProcessBuilder processBuilder, ServerService serverService) throws ServerOperationException {
         try {
+            this.serverService = serverService;
             Logger.info("启动进程: " + String.join(" ", processBuilder.command()));
             Process process = processBuilder.start();
             
@@ -42,12 +56,14 @@ public class ProcessManager {
             
             // 启动输出监听线程 - 传递服务器名称用于日志记录
             startOutputGobbler(process.getInputStream(), serverName, output -> {
-                System.out.println("[PROCESS OUTPUT] " + output);  // 添加调试日志
-                LogWebSocketHandler.sendLogMessage(serverName, output);
+                LogWebSocketHandler.sendLogMessageWithBlockCheck(serverName, output, serverService);
+                // 同时输出到控制台
+                System.out.println("[SERVER " + serverName + "] " + output);
             });
             startOutputGobbler(process.getErrorStream(), serverName, error -> {
-                System.err.println("[PROCESS ERROR] " + error);   // 添加调试日志
-                LogWebSocketHandler.sendLogMessage(serverName, "[ERROR] " + error);
+                LogWebSocketHandler.sendLogMessageWithBlockCheck(serverName, "[ERROR] " + error, serverService);
+                // 同时输出到控制台
+                System.err.println("[SERVER " + serverName + " ERROR] " + error);
             });
             
             return instance;
@@ -119,7 +135,7 @@ public class ProcessManager {
             if (serverName == null) {
                 serverName = instance.getServerName() != null ? instance.getServerName() : "unknown";
             }
-            LogWebSocketHandler.sendLogMessage(serverName, "[COMMAND SENT] " + command);
+            LogWebSocketHandler.sendLogMessageWithBlockCheck(serverName, "[COMMAND SENT] " + command, serverService);
         } catch (IOException e) {
             Logger.error("发送命令失败", e);
             throw new ServerOperationException("发送命令失败", e);
@@ -162,14 +178,14 @@ public class ProcessManager {
             if (serverName == null) {
                 serverName = instance.getServerName() != null ? instance.getServerName() : "unknown";
             }
-            LogWebSocketHandler.sendLogMessage(serverName, "[INFO] 强制终止服务器进程");
+            LogWebSocketHandler.sendLogMessageWithBlockCheck(serverName, "[INFO] 强制终止服务器进程", serverService);
             
             Logger.info("强制终止服务器进程");
             instance.getProcess().destroyForcibly();
             int exitCode = instance.getProcess().waitFor();
             Logger.info("服务器进程已终止，退出代码: " + exitCode);
             
-            LogWebSocketHandler.sendLogMessage(serverName, "[INFO] 服务器进程已终止，退出代码: " + exitCode);
+            LogWebSocketHandler.sendLogMessageWithBlockCheck(serverName, "[INFO] 服务器进程已终止，退出代码: " + exitCode, serverService);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new ServerOperationException("等待进程终止时被中断", e);

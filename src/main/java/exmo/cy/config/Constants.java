@@ -27,8 +27,8 @@ public final class Constants {
     public static final String WORLD_DIR = "world";
     
     // JVM参数常量
-    public static final String DEFAULT_MIN_MEMORY = "128M";
-    public static final String DEFAULT_MAX_MEMORY = "23347M";
+    public static final String DEFAULT_MIN_MEMORY = "512M";
+    public static final String DEFAULT_MAX_MEMORY = "4096M";
     public static final String TIMEZONE = "Asia/Shanghai";
     public static final String FILE_ENCODING = "UTF-8";
     public static final int MAX_FUNCTION_PERMISSION_LEVEL = 4;

@@ -5,6 +5,7 @@ import exmo.cy.command.CommandAnnotation;
 import exmo.cy.command.CommandManager;
 import exmo.cy.model.ServerInstance;
 import exmo.cy.service.ServerService;
+import exmo.cy.util.ConsoleColor;
 import exmo.cy.util.Logger;
 
 import java.util.ArrayList;

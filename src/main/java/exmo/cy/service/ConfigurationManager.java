@@ -51,7 +51,7 @@ public class ConfigurationManager {
                 return new ArrayList<>();
             }
             
-            List<Server> serverList = Arrays.asList(servers);
+            List<Server> serverList = new ArrayList<>(Arrays.asList(servers));
             Logger.info("成功加载 " + serverList.size() + " 个服务器配置");
             return serverList;
         } catch (IOException e) {

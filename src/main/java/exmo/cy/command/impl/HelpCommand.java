@@ -2,34 +2,84 @@ package exmo.cy.command.impl;
 
 import exmo.cy.command.AnnotatedCommand;
 import exmo.cy.command.CommandAnnotation;
+import exmo.cy.command.CommandInterface;
 import exmo.cy.command.CommandManager;
+import exmo.cy.util.ConsoleColor;
 import exmo.cy.util.Logger;
+
+import java.util.Map;
 
 @CommandAnnotation(
     name = "help",
-    aliases = {},
+    aliases = {"?"}, // 添加问号作为别名
     description = "显示帮助信息"
 )
 public class HelpCommand extends AnnotatedCommand {
+    private CommandManager commandManager;
+    
+    // 用于注入CommandManager的构造函数
+    public HelpCommand(CommandManager commandManager) {
+        this.commandManager = commandManager;
+    }
     
     @Override
     public boolean execute(String[] args) {
-        Logger.println("可用指令说明：");
-        Logger.println("create - 创建新服务器");
-        Logger.println("add - 添加现有服务器目录");
-        Logger.println("switch - 切换服务器核心版本");
-        Logger.println("start - 启动服务器");
-        Logger.println("last - 调用上次的参数启动服务器");
-        Logger.println("stop - 退出程序（在主控制台）");
-        Logger.println("help - 显示此帮助信息");
-        Logger.println("list - 列出所有服务器");
-        Logger.println("map - 切换服务器地图");
-        Logger.println("delete - 删除服务器配置和本地文件");
-        Logger.println("attach/at - 连接到运行中的服务器控制台");
-        Logger.println("detach - 从服务器控制台返回主控制台");
-        Logger.println("list-running/lr - 列出所有运行中的服务器");
-        Logger.println("stop-server/ss - 正常停止指定服务器");
-        Logger.println("force-stop - 强制终止当前连接的服务器（在服务器控制台）");
+        if (commandManager == null) {
+            Logger.println(ConsoleColor.colorize(ConsoleColor.RED, "错误: CommandManager未初始化"));
+            return true;
+        }
+        
+        Map<String, CommandInterface> commands = commandManager.getCommands();
+        
+        // 彩色输出标题
+        System.out.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_GREEN, 
+            "\n=== CyMc服务器管理器帮助信息 ==="));
+        System.out.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_CYAN, 
+            "可用指令说明："));
+        
+        for (Map.Entry<String, CommandInterface> entry : commands.entrySet()) {
+            CommandInterface command = entry.getValue();
+            
+            // 检查是否为AnnotatedCommand以获取注解信息
+            if (command instanceof AnnotatedCommand) {
+                AnnotatedCommand annotatedCommand = (AnnotatedCommand) command;
+                CommandAnnotation annotation = annotatedCommand.getAnnotation();
+                
+                if (annotation != null) {
+                    String name = annotation.name();
+                    String[] aliases = annotation.aliases();
+                    String description = annotation.description();
+                    
+                    StringBuilder commandInfo = new StringBuilder();
+                    commandInfo.append(ConsoleColor.colorize(ConsoleColor.BRIGHT_YELLOW, name));
+                    
+                    if (aliases.length > 0) {
+                        commandInfo.append(ConsoleColor.colorize(ConsoleColor.BRIGHT_BLACK, " ("));
+                        for (int i = 0; i < aliases.length; i++) {
+                            if (i > 0) {
+                                commandInfo.append(", ");
+                            }
+                            commandInfo.append(ConsoleColor.colorize(ConsoleColor.BRIGHT_BLACK, aliases[i]));
+                        }
+                        commandInfo.append(ConsoleColor.colorize(ConsoleColor.BRIGHT_BLACK, ")"));
+                    }
+                    
+                    commandInfo.append(": ").append(ConsoleColor.colorize(ConsoleColor.BRIGHT_WHITE, description));
+                    
+                    System.out.println("  " + commandInfo.toString());
+                }
+            } else {
+                // 对于非注解命令，尝试使用通用方法获取描述
+                String commandName = command.getClass().getSimpleName().replace("Command", "").toLowerCase();
+                String description = command.getDescription();
+                System.out.println("  " + ConsoleColor.colorize(ConsoleColor.BRIGHT_YELLOW, commandName) + ": " + 
+                                 ConsoleColor.colorize(ConsoleColor.BRIGHT_WHITE, description));
+            }
+        }
+        
+        System.out.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_BLACK, 
+            "\n提示: 输入 '命令名 ?' 可查看特定命令的详细帮助信息"));
+        
         return true;
     }
     

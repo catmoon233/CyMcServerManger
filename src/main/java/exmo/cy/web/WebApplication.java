@@ -2,6 +2,7 @@ package exmo.cy.web;
 
 import exmo.cy.security.InitializeDefaultUser;
 import exmo.cy.security.SecurityConfig;
+import exmo.cy.socket.TcpSocketService;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;

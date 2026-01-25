@@ -111,6 +111,7 @@ function buildWebSocketUrl(serverName) {
     const encodedServerName = encodeURIComponent(serverName);
     const encodedToken = encodeURIComponent(authToken);
     
+    // 使用新的WebSocket路径格式，兼容info路径
     const url = `${protocol}//${host}/ws/logs/${encodedServerName}?token=${encodedToken}`;
     console.log('构建WebSocket URL:', url.replace(encodedToken, '***'));
     return url;

@@ -13,15 +13,15 @@ import java.util.Map;
 import java.util.Scanner;
 
 @CommandAnnotation(
-    name = "stop-server",
-    aliases = {"ss"},
-    description = "正常停止指定服务器"
+    name = "stop",
+    aliases = {"emergency-stop", "force-kill", "kill"},
+    description = "紧急停止指定服务器（强制终止）"
 )
-public class StopServerCommand extends AnnotatedCommand {
+public class EStopCommand extends AnnotatedCommand {
     private final ServerService serverService;
     private final Scanner scanner = new Scanner(System.in);
     
-    public StopServerCommand(ServerService serverService) {
+    public EStopCommand(ServerService serverService) {
         this.serverService = serverService;
     }
     
@@ -40,7 +40,7 @@ public class StopServerCommand extends AnnotatedCommand {
             System.out.println(serverInfo);
         }
         
-        System.out.print(ConsoleColor.colorize(ConsoleColor.BRIGHT_BLUE, "输入要停止的服务器序号: "));
+        System.out.print(ConsoleColor.colorize(ConsoleColor.BRIGHT_BLUE, "输入要紧急停止的服务器序号: "));
         try {
             int choice = Integer.parseInt(scanner.nextLine()) - 1;
             if (choice < 0 || choice >= serverList.size()) {
@@ -49,10 +49,10 @@ public class StopServerCommand extends AnnotatedCommand {
             }
             
             ServerInstance instance = serverList.get(choice);
-            serverService.stopServer(instance.getServer().getName());
-            System.out.println(ConsoleColor.colorize(ConsoleColor.GREEN, "已发送停止指令到服务器 " + instance.getServer().getName()));
+            serverService.forceStopServer(instance.getServer().getName());
+            System.out.println(ConsoleColor.colorize(ConsoleColor.GREEN, "已强制终止服务器 " + instance.getServer().getName()));
         } catch (Exception e) {
-            System.out.println(ConsoleColor.colorize(ConsoleColor.RED, "停止服务器时出错: " + e.getMessage()));
+            System.out.println(ConsoleColor.colorize(ConsoleColor.RED, "强制终止服务器时出错: " + e.getMessage()));
         }
         
         return true;
@@ -60,7 +60,7 @@ public class StopServerCommand extends AnnotatedCommand {
     
     @Override
     public String getDescription() {
-        return "正常停止指定服务器";
+        return "紧急停止指定服务器（强制终止）";
     }
     
     @Override
