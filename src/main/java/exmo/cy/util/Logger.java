@@ -3,22 +3,85 @@ package exmo.cy.util;
 import exmo.cy.web.LogWebSocketHandler;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 /**
  * 简单的日志工具类
  * 提供统一的日志输出格式和级别控制
  */
 public final class Logger {
-    
+
+    // 禁用Java util logging输出
+    private static final java.util.logging.Logger LOGGER = java.util.logging.Logger.getLogger(Logger.class.getName());
+    static {
+        java.util.logging.Logger rootLogger = java.util.logging.Logger.getLogger("");
+        rootLogger.setLevel(java.util.logging.Level.OFF);
+        LOGGER.setLevel(java.util.logging.Level.OFF);
+    }
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final DateTimeFormatter FILE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
     private static LogLevel currentLevel = LogLevel.INFO;
     
     // 线程本地存储，用于追踪当前线程的服务器名称上下文
     private static final ThreadLocal<String> serverNameContext = ThreadLocal.withInitial(() -> "CONSOLE");
     
+    // 行为日志相关
+    private static final String BEHAVIOR_LOG_DIR = "behavior_logs";
+    private static final String BEHAVIOR_LOG_FILE = "behavior_" + LocalDateTime.now().format(FILE_TIME_FORMATTER) + ".log";
+    private static final Path BEHAVIOR_LOG_PATH = Paths.get(BEHAVIOR_LOG_DIR, BEHAVIOR_LOG_FILE);
+    private static PrintWriter behaviorLogWriter = null;
+    private static final Object logLock = new Object();
+    
+    // 静态初始化行为日志
+    static {
+        initializeBehaviorLogging();
+    }
+    
     // 防止实例化
     private Logger() {
         throw new UnsupportedOperationException("这是一个工具类，不能被实例化");
+    }
+    
+    /**
+     * 初始化行为日志系统
+     */
+    private static void initializeBehaviorLogging() {
+        try {
+            // 创建日志目录
+            Path logDir = Paths.get(BEHAVIOR_LOG_DIR);
+            if (!Files.exists(logDir)) {
+                Files.createDirectories(logDir);
+            }
+            
+            // 创建日志文件写入器
+            FileWriter fileWriter = new FileWriter(BEHAVIOR_LOG_PATH.toFile(), true);
+            behaviorLogWriter = new PrintWriter(fileWriter);
+            behaviorLogWriter.println("\n=== 行为日志开始 - " + LocalDateTime.now().format(TIME_FORMATTER) + " ===");
+
+            behaviorLogWriter.flush();
+        } catch (IOException e) {
+            System.err.println("无法初始化行为日志系统: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 记录行为日志（仅记录主控制台行为，不记录子服日志）
+     * @param message 行为描述
+     */
+    public static void logBehavior(String message) {
+        synchronized (logLock) {
+            if (behaviorLogWriter != null) {
+                String timestamp = LocalDateTime.now().format(TIME_FORMATTER);
+                String logMessage = String.format("[%s] [BEHAVIOR] %s", timestamp, message);
+                LOGGER.log(java.util.logging.Level.INFO, logMessage);
+                behaviorLogWriter.flush(); // 确保立即写入
+            }
+        }
     }
     
     /**
@@ -130,14 +193,10 @@ public final class Logger {
             String timestamp = LocalDateTime.now().format(TIME_FORMATTER);
             String logMessage = String.format("[%s] [%s] %s", timestamp, level.name(), message);
             
-            // 使用颜色输出日志
-            String coloredLogMessage = ConsoleColor.colorizeLogLevel(level, logMessage);
-            System.out.println(coloredLogMessage);
-            
             // 通过WebSocket发送到前端 - 使用当前线程的服务器名称上下文
             try {
                 String contextServerName = getServerNameContext();
-                LogWebSocketHandler.sendLogMessage(contextServerName, logMessage); // 发送原始消息，前端处理颜色
+                LogWebSocketHandler.sendLogMessage(contextServerName, logMessage);
             } catch (Exception e) {
                 // 忽略WebSocket发送错误
             }
@@ -149,10 +208,13 @@ public final class Logger {
      * @param message 消息
      */
     public static void println(String message) {
-        // 为普通输出也添加颜色支持
-        String coloredMessage = ConsoleColor.colorize(ConsoleColor.BRIGHT_WHITE, message);
-        System.out.println(coloredMessage);
-        System.out.println();
+        // 直接输出消息，不添加时间戳和标签
+        System.out.println(message);
+        
+        // 只为主控制台（非子服）记录行为日志
+        if ("CONSOLE".equals(getServerNameContext())) {
+            logBehavior("输出信息: " + message);
+        }
         
         // 通过WebSocket发送到前端 - 使用当前线程的服务器名称上下文
         try {
@@ -169,15 +231,33 @@ public final class Logger {
      */
     public static void print(String message) {
         // 为普通输出也添加颜色支持
+
         String coloredMessage = ConsoleColor.colorize(ConsoleColor.WHITE, message);
-        System.out.print(coloredMessage);
-        
+        LOGGER.log(java.util.logging.Level.INFO, coloredMessage);
+
+        // 只为主控制台（非子服）记录行为日志
+        if ("CONSOLE".equals(getServerNameContext())) {
+            logBehavior("输出信息: " + message);
+        }
         // 通过WebSocket发送到前端 - 使用当前线程的服务器名称上下文
         try {
             String contextServerName = getServerNameContext();
             LogWebSocketHandler.sendLogMessage(contextServerName, message);
         } catch (Exception e) {
             // 忽略WebSocket发送错误
+        }
+    }
+    
+    /**
+     * 关闭行为日志系统
+     */
+    public static void closeBehaviorLog() {
+        synchronized (logLock) {
+            if (behaviorLogWriter != null) {
+                behaviorLogWriter.println("=== 行为日志结束 - " + LocalDateTime.now().format(TIME_FORMATTER) + " ===");
+                behaviorLogWriter.close();
+                behaviorLogWriter = null;
+            }
         }
     }
 }

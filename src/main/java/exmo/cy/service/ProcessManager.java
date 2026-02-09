@@ -58,7 +58,7 @@ public class ProcessManager {
             startOutputGobbler(process.getInputStream(), serverName, output -> {
                 LogWebSocketHandler.sendLogMessageWithBlockCheck(serverName, output, serverService);
                 // 同时输出到控制台
-                System.out.println("[SERVER " + serverName + "] " + output);
+                Logger.println("[SERVER " + serverName + "] " + output);
             });
             startOutputGobbler(process.getErrorStream(), serverName, error -> {
                 LogWebSocketHandler.sendLogMessageWithBlockCheck(serverName, "[ERROR] " + error, serverService);

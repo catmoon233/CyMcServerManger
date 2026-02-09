@@ -353,7 +353,7 @@ public class ServerService {
                 Logger.info(message);
                 LogWebSocketHandler.sendLogMessage(instance.getServer().getName(), "[INFO] " + message);
                 // 同时输出到控制台
-                System.out.println("[INFO] " + message);
+                Logger.println("[INFO] " + message);
             } catch (ServerOperationException e) {
                 String errorMessage = "监控服务器进程时出错: " + e.getMessage();
                 Logger.error(errorMessage, e);
@@ -379,7 +379,7 @@ public class ServerService {
         processManager.stopServer(instance);
         LogWebSocketHandler.sendLogMessage(serverName, "[INFO] 服务器正在停止...");
         // 同时输出到控制台
-        System.out.println("[SERVER " + serverName + " INFO] 服务器正在停止...");
+        Logger.println("[SERVER " + serverName + " INFO] 服务器正在停止...");
     }
     
     /**
@@ -411,7 +411,7 @@ public class ServerService {
         processManager.sendCommand(instance, command);
         LogWebSocketHandler.sendLogMessage(serverName, "[COMMAND SENT] " + command);
         // 同时输出到控制台
-        System.out.println("[SERVER " + serverName + " COMMAND SENT] " + command);
+        Logger.println("[SERVER " + serverName + " COMMAND SENT] " + command);
     }
     
     /**
@@ -592,5 +592,80 @@ public class ServerService {
         }
         
         Logger.info("所有服务器已关闭");
+    }
+
+    /**
+     * 从模板服务器复制指定的文件夹到目标服务器
+     * @param targetServerName 目标服务器名称
+     * @param templateServerName 模板服务器名称
+     * @param foldersToCopy 要复制的文件夹列表（如mods, config, world, plugins等）
+     * @param overwrite 是否覆盖已存在的文件
+     * @throws ServerOperationException 如果操作失败
+     * @throws ConfigurationException 如果配置不正确
+     */
+    public void copyFromTemplateServer(String targetServerName, String templateServerName, 
+                                       List<String> foldersToCopy, boolean overwrite) 
+            throws ServerOperationException, ConfigurationException {
+        
+        // 检查源服务器和目标服务器是否存在
+        Optional<Server> templateOpt = configManager.findServerByName(templateServerName);
+        Optional<Server> targetOpt = configManager.findServerByName(targetServerName);
+        
+        if (!templateOpt.isPresent()) {
+            throw new ServerOperationException("模板服务器不存在: " + templateServerName);
+        }
+        if (!targetOpt.isPresent()) {
+            throw new ServerOperationException("目标服务器不存在: " + targetServerName);
+        }
+        
+        Server templateServer = templateOpt.get();
+        Server targetServer = targetOpt.get();
+        
+        // 获取服务器根目录
+        Path templateServerDir = Paths.get(templateServer.getCorePath()).getParent();
+        Path targetServerDir = Paths.get(targetServer.getCorePath()).getParent();
+        
+        if (!Files.exists(templateServerDir)) {
+            throw new ServerOperationException("模板服务器目录不存在: " + templateServerDir);
+        }
+        if (!Files.exists(targetServerDir)) {
+            throw new ServerOperationException("目标服务器目录不存在: " + targetServerDir);
+        }
+        
+        Logger.info("开始从模板服务器 " + templateServerName + " 复制数据到 " + targetServerName);
+        
+        // 复制每个指定的文件夹
+        for (String folderName : foldersToCopy) {
+            Path sourceFolder = templateServerDir.resolve(folderName);
+            Path targetFolder = targetServerDir.resolve(folderName);
+            
+            if (!Files.exists(sourceFolder)) {
+                Logger.info("模板服务器中不存在文件夹: " + folderName + "，跳过");
+                continue;
+            }
+            
+            try {
+                if (Files.exists(targetFolder) && !overwrite) {
+                    Logger.warn("目标服务器中文件夹 " + folderName + " 已存在且不覆盖，跳过");
+                    continue;
+                }
+                
+                // 删除目标文件夹（如果存在且需要覆盖）
+                if (Files.exists(targetFolder) && overwrite) {
+                    FileUtils.deleteDirectory(targetFolder);
+                    Logger.info("已删除目标服务器中的文件夹: " + folderName);
+                }
+                
+                // 复制文件夹
+                FileUtils.copyDirectory(sourceFolder, targetFolder);
+                Logger.info("已成功复制文件夹: " + folderName);
+                
+            } catch (Exception e) {
+                Logger.error("复制文件夹失败: " + folderName + ", 错误: " + e.getMessage());
+                throw new ServerOperationException("复制文件夹 " + folderName + " 失败: " + e.getMessage(), e);
+            }
+        }
+        
+        Logger.info("服务器数据复制完成");
     }
 }

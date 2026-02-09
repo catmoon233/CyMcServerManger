@@ -5,6 +5,8 @@ import exmo.cy.security.JwtUtil;
 import exmo.cy.security.UserDetailsServiceImpl;
 import exmo.cy.service.ServerService;
 import java.util.concurrent.CopyOnWriteArrayList;
+
+import exmo.cy.util.Logger;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.socket.CloseStatus;
@@ -57,10 +59,10 @@ public class LogWebSocketHandler extends TextWebSocketHandler {
         try {
             // 从URI获取服务器名称
             String uri = session.getUri().toString();
-            System.out.println("WebSocket连接请求 URI: " + uri);
+            Logger.println("WebSocket连接请求 URI: " + uri);
             
             String serverName = extractServerNameFromUri(uri);
-            System.out.println("提取的服务器名称: " + serverName);
+            Logger.println("提取的服务器名称: " + serverName);
             
             // 验证JWT令牌
             String token = extractTokenFromUri(uri);
@@ -70,10 +72,10 @@ public class LogWebSocketHandler extends TextWebSocketHandler {
                 return;
             }
             
-            System.out.println("提取的令牌: " + (token.length() > 20 ? token.substring(0, 20) + "..." : token));
+            Logger.println("提取的令牌: " + (token.length() > 20 ? token.substring(0, 20) + "..." : token));
             
             if (validateToken(token)) {
-                System.out.println("新的WebSocket连接到服务器 " + serverName + ": " + session.getId());
+                Logger.println("新的WebSocket连接到服务器 " + serverName + ": " + session.getId());
                 serverSessions.computeIfAbsent(serverName, k -> new CopyOnWriteArrayList<>()).add(session);
                 
                 // 发送连接成功的确认消息
@@ -111,7 +113,7 @@ public class LogWebSocketHandler extends TextWebSocketHandler {
                 if (serverService != null) {
                     try {
                         serverService.sendCommand(serverName, command);
-                        System.out.println("已将命令发送到服务器 " + serverName + ": " + command);
+                        Logger.println("已将命令发送到服务器 " + serverName + ": " + command);
                         // 服务器服务类内部会把命令回显到WebSocket
                     } catch (Exception e) {
                         System.err.println("发送命令到服务器失败: " + e.getMessage());
@@ -126,7 +128,7 @@ public class LogWebSocketHandler extends TextWebSocketHandler {
                 if (serverService != null) {
                     try {
                         serverService.sendCommand(serverName, payload);
-                        System.out.println("已将命令发送到服务器 " + serverName + ": " + payload);
+                        Logger.println("已将命令发送到服务器 " + serverName + ": " + payload);
                     } catch (Exception e) {
                         System.err.println("发送命令到服务器失败: " + e.getMessage());
                         sendMessageToSession(session, "[ERROR] 发送命令失败: " + e.getMessage());
@@ -148,15 +150,15 @@ public class LogWebSocketHandler extends TextWebSocketHandler {
         for (Map.Entry<String, List<WebSocketSession>> entry : serverSessions.entrySet()) {
             List<WebSocketSession> sessions = entry.getValue();
             if (sessions != null && sessions.remove(session)) {
-                System.out.println("从服务器 '" + entry.getKey() + "' 的会话列表中移除连接: " + session.getId());
+                Logger.println("从服务器 '" + entry.getKey() + "' 的会话列表中移除连接: " + session.getId());
                 
                 // 如果该服务器的会话列表为空，可以选择保留或移除
                 if (sessions.isEmpty()) {
-                    System.out.println("服务器 '" + entry.getKey() + "' 的所有WebSocket连接已断开");
+                    Logger.println("服务器 '" + entry.getKey() + "' 的所有WebSocket连接已断开");
                 }
             }
         }
-        System.out.println("WebSocket连接关闭: " + session.getId() + ", 状态码: " + status.getCode() + ", 原因: " + status.getReason());
+        Logger.println("WebSocket连接关闭: " + session.getId() + ", 状态码: " + status.getCode() + ", 原因: " + status.getReason());
     }
 
     @Override
@@ -257,7 +259,7 @@ public class LogWebSocketHandler extends TextWebSocketHandler {
                 }
             }
 
-            System.out.println("令牌验证成功: 用户 " + username);
+            Logger.println("令牌验证成功: 用户 " + username);
             return true;
         } catch (Exception e) {
             System.err.println("令牌验证异常: " + e.getMessage());

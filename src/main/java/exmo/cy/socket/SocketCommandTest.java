@@ -1,5 +1,7 @@
 package exmo.cy.socket;
 
+import exmo.cy.util.Logger;
+
 import java.io.*;
 import java.net.Socket;
 
@@ -14,10 +16,10 @@ public class SocketCommandTest {
     
     public static void main(String[] args) {
         if (args.length == 0) {
-            System.out.println("用法: java SocketCommandTest <command>");
-            System.out.println("例如: java SocketCommandTest \"help:\"");
-            System.out.println("例如: java SocketCommandTest \"list-servers:\"");
-            System.out.println("例如: java SocketCommandTest \"start-server:testServer\"");
+            Logger.println("用法: java SocketCommandTest <command>");
+            Logger.println("例如: java SocketCommandTest \"help:\"");
+            Logger.println("例如: java SocketCommandTest \"list-servers:\"");
+            Logger.println("例如: java SocketCommandTest \"start-server:testServer\"");
             return;
         }
         
@@ -32,8 +34,8 @@ public class SocketCommandTest {
             
             // 读取响应
             String response = reader.readLine();
-            System.out.println("命令: " + command);
-            System.out.println("响应: " + response);
+            Logger.println("命令: " + command);
+            Logger.println("响应: " + response);
             
         } catch (IOException e) {
             System.err.println("执行命令时出错: " + e.getMessage());

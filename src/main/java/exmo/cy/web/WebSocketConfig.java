@@ -3,6 +3,7 @@ package exmo.cy.web;
 import exmo.cy.security.JwtUtil;
 import exmo.cy.security.UserDetailsServiceImpl;
 import exmo.cy.service.ServerService;
+import exmo.cy.util.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -110,7 +111,7 @@ public class WebSocketConfig implements WebSocketConfigurer {
                 return false;
             }
 
-            System.out.println("WebSocket握手成功: 用户 " + jwtUtil.extractUsername(token));
+            Logger.println("WebSocket握手成功: 用户 " + jwtUtil.extractUsername(token));
             return true;
         }
 
@@ -121,7 +122,7 @@ public class WebSocketConfig implements WebSocketConfigurer {
             if (exception != null) {
                 System.err.println("WebSocket握手过程中发生异常: " + exception.getMessage());
             } else {
-                System.out.println("WebSocket握手完成");
+                Logger.println("WebSocket握手完成");
             }
         }
     }

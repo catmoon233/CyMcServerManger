@@ -65,11 +65,11 @@ public class SendCommand extends AnnotatedCommand {
         Map<String, ServerInstance> activeServers = serverService.getActiveServers();
         
         if (activeServers.isEmpty()) {
-            System.out.println(ConsoleColor.colorize(ConsoleColor.YELLOW, "没有运行中的服务器"));
+            Logger.println(ConsoleColor.colorize(ConsoleColor.YELLOW, "没有运行中的服务器"));
             return true;
         }
         
-        System.out.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_GREEN, 
+        Logger.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_GREEN, 
             "正在向所有运行中的服务器发送命令: " + command));
         
         int successCount = 0;
@@ -77,16 +77,16 @@ public class SendCommand extends AnnotatedCommand {
             String serverName = entry.getKey();
             try {
                 serverService.sendCommand(serverName, command);
-                System.out.println(ConsoleColor.colorize(ConsoleColor.GREEN, 
+                Logger.println(ConsoleColor.colorize(ConsoleColor.GREEN, 
                     "✓ 命令已发送到服务器: " + serverName));
                 successCount++;
             } catch (Exception e) {
-                System.out.println(ConsoleColor.colorize(ConsoleColor.RED, 
+                Logger.println(ConsoleColor.colorize(ConsoleColor.RED, 
                     "✗ 发送到服务器 " + serverName + " 失败: " + e.getMessage()));
             }
         }
         
-        System.out.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_GREEN, 
+        Logger.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_GREEN, 
             "成功发送到 " + successCount + "/" + activeServers.size() + " 个服务器"));
         
         return true;
@@ -97,27 +97,27 @@ public class SendCommand extends AnnotatedCommand {
         Map<String, ServerInstance> activeServers = serverService.getActiveServers();
         
         if (!activeServers.containsKey(serverName)) {
-            System.out.println(ConsoleColor.colorize(ConsoleColor.RED, 
+            Logger.println(ConsoleColor.colorize(ConsoleColor.RED, 
                 "服务器 " + serverName + " 当前未运行"));
             
             // 显示可用的运行中服务器列表
             if (!activeServers.isEmpty()) {
-                System.out.println(ConsoleColor.colorize(ConsoleColor.YELLOW, "运行中的服务器:"));
+                Logger.println(ConsoleColor.colorize(ConsoleColor.YELLOW, "运行中的服务器:"));
                 for (String name : activeServers.keySet()) {
-                    System.out.println("  - " + name);
+                    Logger.println("  - " + name);
                 }
             } else {
-                System.out.println(ConsoleColor.colorize(ConsoleColor.YELLOW, "当前没有运行中的服务器"));
+                Logger.println(ConsoleColor.colorize(ConsoleColor.YELLOW, "当前没有运行中的服务器"));
             }
             return true;
         }
         
         try {
             serverService.sendCommand(serverName, command);
-            System.out.println(ConsoleColor.colorize(ConsoleColor.GREEN, 
+            Logger.println(ConsoleColor.colorize(ConsoleColor.GREEN, 
                 "命令已发送到服务器 " + serverName + ": " + command));
         } catch (Exception e) {
-            System.out.println(ConsoleColor.colorize(ConsoleColor.RED, 
+            Logger.println(ConsoleColor.colorize(ConsoleColor.RED, 
                 "发送命令失败: " + e.getMessage()));
         }
         
@@ -125,14 +125,14 @@ public class SendCommand extends AnnotatedCommand {
     }
     
     private void showUsage() {
-        System.out.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_YELLOW, "发送命令到服务器用法:"));
-        System.out.println(ConsoleColor.colorize(ConsoleColor.CYAN, "  send <服务器名称> <命令>     - 向指定服务器发送命令"));
-        System.out.println(ConsoleColor.colorize(ConsoleColor.CYAN, "  send all <命令>              - 向所有运行中的服务器发送命令"));
-        System.out.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_WHITE, "示例:"));
-        System.out.println(ConsoleColor.colorize(ConsoleColor.WHITE, "  send server1 op player1"));
-        System.out.println(ConsoleColor.colorize(ConsoleColor.WHITE, "  send myserver say Hello World"));
-        System.out.println(ConsoleColor.colorize(ConsoleColor.WHITE, "  send all broadcast Server maintenance in 5 minutes"));
-        System.out.println(ConsoleColor.colorize(ConsoleColor.WHITE, "  send all save-all"));
+        Logger.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_YELLOW, "发送命令到服务器用法:"));
+        Logger.println(ConsoleColor.colorize(ConsoleColor.CYAN, "  send <服务器名称> <命令>     - 向指定服务器发送命令"));
+        Logger.println(ConsoleColor.colorize(ConsoleColor.CYAN, "  send all <命令>              - 向所有运行中的服务器发送命令"));
+        Logger.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_WHITE, "示例:"));
+        Logger.println(ConsoleColor.colorize(ConsoleColor.WHITE, "  send server1 op player1"));
+        Logger.println(ConsoleColor.colorize(ConsoleColor.WHITE, "  send myserver say Hello World"));
+        Logger.println(ConsoleColor.colorize(ConsoleColor.WHITE, "  send all broadcast Server maintenance in 5 minutes"));
+        Logger.println(ConsoleColor.colorize(ConsoleColor.WHITE, "  send all save-all"));
     }
     
     @Override

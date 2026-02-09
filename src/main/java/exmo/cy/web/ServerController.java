@@ -266,4 +266,128 @@ public class ServerController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
+
+    /**
+     * 屏蔽服务器的控制台输出
+     */
+    @PostMapping("/{name}/block")
+    public ResponseEntity<Map<String, Object>> blockServerOutput(@PathVariable String name) {
+        try {
+            boolean wasBlocked = serverService.isServerBlocked(name);
+            serverService.blockServerOutput(name);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", wasBlocked ? "服务器已在屏蔽列表中" : "服务器控制台输出已屏蔽");
+            response.put("serverName", name);
+            response.put("isBlocked", true);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("error", "屏蔽服务器失败: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
+
+    /**
+     * 取消屏蔽服务器的控制台输出
+     */
+    @PostMapping("/{name}/unblock")
+    public ResponseEntity<Map<String, Object>> unblockServerOutput(@PathVariable String name) {
+        try {
+            boolean wasBlocked = serverService.isServerBlocked(name);
+            serverService.unblockServerOutput(name);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", !wasBlocked ? "服务器不在屏蔽列表中" : "服务器控制台屏蔽已取消");
+            response.put("serverName", name);
+            response.put("isBlocked", false);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("error", "取消屏蔽服务器失败: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
+
+    /**
+     * 获取被屏蔽的服务器列表
+     */
+    @GetMapping("/blocked")
+    public ResponseEntity<Map<String, Object>> getBlockedServers() {
+        try {
+            List<String> blockedServers = serverService.getBlockedServers();
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("data", blockedServers);
+            response.put("count", blockedServers.size());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("error", "获取被屏蔽服务器列表失败: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
+
+    /**
+     * 检查服务器是否被屏蔽
+     */
+    @GetMapping("/{name}/blocked")
+    public ResponseEntity<Map<String, Object>> isServerBlocked(@PathVariable String name) {
+        try {
+            boolean isBlocked = serverService.isServerBlocked(name);
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("isBlocked", isBlocked);
+            response.put("serverName", name);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("error", "检查屏蔽状态失败: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
+
+    /**
+     * 从模板服务器复制文件夹到目标服务器
+     */
+    @PostMapping("/{targetName}/copy-from-template")
+    public ResponseEntity<Map<String, Object>> copyFromTemplate(
+            @PathVariable String targetName,
+            @RequestBody Map<String, Object> request) {
+        try {
+            String templateName = (String) request.get("templateName");
+            if (templateName == null || templateName.trim().isEmpty()) {
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", false);
+                response.put("error", "模板服务器名称不能为空");
+                return ResponseEntity.badRequest().body(response);
+            }
+
+            @SuppressWarnings("unchecked")
+            List<String> foldersToCopy = (List<String>) request.getOrDefault("folders", 
+                java.util.Arrays.asList("mods", "config", "world", "plugins"));
+            boolean overwrite = (boolean) request.getOrDefault("overwrite", false);
+
+            serverService.copyFromTemplateServer(targetName, templateName, foldersToCopy, overwrite);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "服务器数据复制成功");
+            response.put("targetServer", targetName);
+            response.put("templateServer", templateName);
+            response.put("copiedFolders", foldersToCopy);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("error", "复制失败: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
 }

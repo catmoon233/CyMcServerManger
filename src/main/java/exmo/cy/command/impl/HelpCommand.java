@@ -32,9 +32,9 @@ public class HelpCommand extends AnnotatedCommand {
         Map<String, CommandInterface> commands = commandManager.getCommands();
         
         // 彩色输出标题
-        System.out.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_GREEN, 
+        Logger.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_GREEN, 
             "\n=== CyMc服务器管理器帮助信息 ==="));
-        System.out.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_CYAN, 
+        Logger.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_CYAN, 
             "可用指令说明："));
         
         for (Map.Entry<String, CommandInterface> entry : commands.entrySet()) {
@@ -66,18 +66,18 @@ public class HelpCommand extends AnnotatedCommand {
                     
                     commandInfo.append(": ").append(ConsoleColor.colorize(ConsoleColor.BRIGHT_WHITE, description));
                     
-                    System.out.println("  " + commandInfo.toString());
+                    Logger.println("  " + commandInfo.toString());
                 }
             } else {
                 // 对于非注解命令，尝试使用通用方法获取描述
                 String commandName = command.getClass().getSimpleName().replace("Command", "").toLowerCase();
                 String description = command.getDescription();
-                System.out.println("  " + ConsoleColor.colorize(ConsoleColor.BRIGHT_YELLOW, commandName) + ": " + 
+                Logger.println("  " + ConsoleColor.colorize(ConsoleColor.BRIGHT_YELLOW, commandName) + ": " + 
                                  ConsoleColor.colorize(ConsoleColor.BRIGHT_WHITE, description));
             }
         }
         
-        System.out.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_BLACK, 
+        Logger.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_BLACK, 
             "\n提示: 输入 '命令名 ?' 可查看特定命令的详细帮助信息"));
         
         return true;

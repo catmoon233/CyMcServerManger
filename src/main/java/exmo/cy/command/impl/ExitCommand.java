@@ -22,7 +22,7 @@ public class ExitCommand extends AnnotatedCommand {
 
     @Override
     public boolean execute(String[] args) {
-        System.out.println(ConsoleColor.colorize(ConsoleColor.YELLOW, "正在关闭CyMc Server Manager..."));
+        Logger.println(ConsoleColor.colorize(ConsoleColor.YELLOW, "正在关闭CyMc Server Manager..."));
         
         // 关闭所有服务器
         serverService.shutdownAllServers();
@@ -34,7 +34,7 @@ public class ExitCommand extends AnnotatedCommand {
             Thread.currentThread().interrupt();
         }
         
-        System.out.println(ConsoleColor.colorize(ConsoleColor.RED, "CyMc Server Manager已关闭"));
+        Logger.println(ConsoleColor.colorize(ConsoleColor.RED, "CyMc Server Manager已关闭"));
         System.exit(0);
         return false; // 返回false以停止命令循环
     }

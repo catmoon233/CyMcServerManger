@@ -107,7 +107,7 @@ public class ServerGroupService {
         // 检查服务器是否存在
         try {
             Optional<Server> serverOpt = serverService.getConfigManager().findServerByName(serverName);
-            if (!serverOpt.isPresent()) {
+            if (serverOpt.isEmpty()) {
                 Logger.warn("服务器不存在: " + serverName);
                 return false;
             }
@@ -301,6 +301,10 @@ public class ServerGroupService {
      * 获取群组信息
      */
     public ServerGroup getGroup(String groupName) {
+        // 如果群组不存在且当前群组集合为空，尝试加载配置
+        if (!groups.containsKey(groupName) && groups.isEmpty()) {
+            loadGroups();
+        }
         return groups.get(groupName);
     }
     
@@ -308,6 +312,10 @@ public class ServerGroupService {
      * 获取所有群组名称
      */
     public Set<String> getGroupNames() {
+        // 在返回群组名称之前，确保群组已经加载
+        if (groups.isEmpty()) {
+            loadGroups();
+        }
         return new HashSet<>(groups.keySet());
     }
     
@@ -369,19 +377,282 @@ public class ServerGroupService {
             return;
         }
         
-        try (Scanner scanner = new Scanner(path)) {
-            // 简单的JSON解析，实际应用中应使用JSON库
-            StringBuilder content = new StringBuilder();
-            while (scanner.hasNextLine()) {
-                content.append(scanner.nextLine());
+        try {
+            String content = Files.readString(path);
+            
+            // 解析JSON内容
+            content = content.trim();
+            if (content.startsWith("[") && content.endsWith("]")) {
+                content = content.substring(1, content.length() - 1); // 移除开头和结尾的方括号
+            } else {
+                Logger.warn("群组配置文件格式错误，不是有效的JSON数组");
+                return;
             }
             
-            // TODO: 实现完整的JSON解析以支持新字段（launchMode, presetJvmArgs, presetServerArgs）
-            // 当前简单的解析仅能加载基本群组配置
-            Logger.info("群组配置已加载");
+            // 重置groups map以避免重复加载
+            groups.clear();
+            
+            // 按对象边界分割JSON数组
+            List<String> groupObjects = splitJsonArray(content);
+            
+            for (String groupStr : groupObjects) {
+                parseGroupFromJson(groupStr.trim());
+            }
+            
+            Logger.info("成功加载 " + groups.size() + " 个群组配置");
         } catch (Exception e) {
             Logger.error("加载群组配置失败: " + e.getMessage(), e);
         }
+    }
+    
+    /**
+     * 将JSON数组字符串分割为独立的对象字符串
+     */
+    private List<String> splitJsonArray(String jsonArray) {
+        List<String> result = new ArrayList<>();
+        int braceCount = 0;
+        int start = 0;
+        boolean inString = false;
+        char quoteChar = '\0';
+        
+        // 处理可能的前置逗号或空格
+        while (start < jsonArray.length() && Character.isWhitespace(jsonArray.charAt(start))) {
+            start++;
+        }
+        
+        if (jsonArray.startsWith(",")) {
+            start = 1;
+            while (start < jsonArray.length() && Character.isWhitespace(jsonArray.charAt(start))) {
+                start++;
+            }
+        }
+        
+        for (int i = start; i < jsonArray.length(); i++) {
+            char c = jsonArray.charAt(i);
+            
+            // 检查字符串边界
+            if (c == '"' || c == '\'') {
+                if (!inString) {
+                    inString = true;
+                    quoteChar = c;
+                } else if (quoteChar == c) {
+                    // 检查是否是转义的引号
+                    if (i == 0 || jsonArray.charAt(i - 1) != '\\') {
+                        inString = false;
+                        quoteChar = '\0';
+                    }
+                }
+            }
+            
+            if (!inString) {
+                if (c == '{') {
+                    if (braceCount == 0) {
+                        start = i; // 记录新对象的开始位置
+                    }
+                    braceCount++;
+                } else if (c == '}') {
+                    braceCount--;
+                    
+                    // 当braceCount为0时，说明找到一个完整的对象
+                    if (braceCount == 0) {
+                        String obj = jsonArray.substring(start, i + 1);
+                        result.add(obj);
+                        
+                        // 跳过逗号和空格
+                        i++; // 移动到右括号后一位
+                        while (i < jsonArray.length() && (jsonArray.charAt(i) == ',' || Character.isWhitespace(jsonArray.charAt(i)))) {
+                            i++;
+                        }
+                        start = i;
+                        i--; // 因为for循环会递增i
+                    }
+                }
+            }
+        }
+        
+        return result;
+    }
+    
+    /**
+     * 从JSON字符串解析群组对象
+     */
+    private void parseGroupFromJson(String groupJson) {
+        try {
+            // 提取name
+            String name = extractJsonValue(groupJson, "name");
+            if (name == null || name.isEmpty()) {
+                Logger.warn("群组JSON中缺少name字段或name为空: " + groupJson);
+                return;
+            }
+            
+            // 创建群组对象并设置属性
+            ServerGroup group = new ServerGroup();
+            group.setName(name);
+            
+            // 提取其他字段
+            group.setOrderedStartup(extractBooleanValue(groupJson, "orderedStartup"));
+            group.setTriggerKeyword(extractJsonValue(groupJson, "triggerKeyword"));
+            group.setStartupDelay(extractIntValue(groupJson, "startupDelay", 5000));
+            group.setLaunchMode(extractIntValue(groupJson, "launchMode", 1));
+            
+            String presetJvmArgs = extractJsonValue(groupJson, "presetJvmArgs");
+            if (presetJvmArgs != null && !presetJvmArgs.isEmpty() && !presetJvmArgs.equals("")) {
+                group.setPresetJvmArgs(presetJvmArgs);
+            }
+            
+            String presetServerArgs = extractJsonValue(groupJson, "presetServerArgs");
+            if (presetServerArgs != null && !presetServerArgs.isEmpty() && !presetServerArgs.equals("")) {
+                group.setPresetServerArgs(presetServerArgs);
+            }
+            
+            String minMemory = extractJsonValue(groupJson, "minMemory");
+            if (minMemory != null && !minMemory.isEmpty() && !minMemory.equals("")) {
+                group.setMinMemory(minMemory);
+            }
+            
+            String maxMemory = extractJsonValue(groupJson, "maxMemory");
+            if (maxMemory != null && !maxMemory.isEmpty() && !maxMemory.equals("")) {
+                group.setMaxMemory(maxMemory);
+            }
+            
+            // 提取serverNames数组
+            String serverNamesStr = extractJsonArray(groupJson, "serverNames");
+            if (serverNamesStr != null) {
+                List<String> serverNames = parseStringArray(serverNamesStr);
+                group.setServerNames(serverNames);
+            }
+            
+            // 将群组添加到映射中
+            groups.put(name, group);
+            
+        } catch (Exception e) {
+            Logger.error("解析群组JSON失败: " + e.getMessage() + ", JSON: " + groupJson, e);
+        }
+    }
+    
+    /**
+     * 从JSON中提取字符串值
+     */
+    private String extractJsonValue(String json, String key) {
+        String regex = "\"" + key + "\"\\s*:\\s*\"([^\"]*)\"";
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(regex);
+        java.util.regex.Matcher matcher = pattern.matcher(json);
+        
+        if (matcher.find()) {
+            return matcher.group(1);
+        }
+        
+        // 尝试匹配布尔值或数字
+        regex = "\"" + key + "\"\\s*:\\s*(true|false|[0-9]+)";
+        pattern = java.util.regex.Pattern.compile(regex);
+        matcher = pattern.matcher(json);
+        
+        if (matcher.find()) {
+            String value = matcher.group(1);
+            // 如果是布尔值或数字，返回字符串形式
+            if (value.equals("true") || value.equals("false")) {
+                return value.equals("true") ? "true" : "false";
+            }
+            return value;
+        }
+        
+        return null;
+    }
+    
+    /**
+     * 从JSON中提取布尔值
+     */
+    private boolean extractBooleanValue(String json, String key) {
+        String value = extractJsonValue(json, key);
+        return value != null && value.equals("true");
+    }
+    
+    /**
+     * 从JSON中提取整数值
+     */
+    private int extractIntValue(String json, String key, int defaultValue) {
+        String value = extractJsonValue(json, key);
+        if (value != null) {
+            try {
+                return Integer.parseInt(value);
+            } catch (NumberFormatException e) {
+                return defaultValue;
+            }
+        }
+        return defaultValue;
+    }
+    
+    /**
+     * 从JSON中提取数组部分
+     */
+    private String extractJsonArray(String json, String key) {
+        String regex = "\"" + key + "\"\\s*:\\s*\\[(.*?)\\]";
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(regex);
+        java.util.regex.Matcher matcher = pattern.matcher(json);
+        
+        if (matcher.find()) {
+            return matcher.group(1);
+        }
+        
+        return null;
+    }
+    
+    /**
+     * 解析字符串数组
+     */
+    private List<String> parseStringArray(String arrayStr) {
+        List<String> result = new ArrayList<>();
+        
+        if (arrayStr == null || arrayStr.trim().isEmpty()) {
+            return result;
+        }
+        
+        // 处理数组中的每个字符串
+        int start = 0;
+        int quoteCount = 0;
+        boolean inQuotes = false;
+        char quoteChar = '\0';
+        
+        for (int i = 0; i < arrayStr.length(); i++) {
+            char c = arrayStr.charAt(i);
+            
+            if (c == '"' || c == '\'') {
+                if (!inQuotes) {
+                    inQuotes = true;
+                    quoteChar = c;
+                } else if (quoteChar == c) {
+                    // 检查是否是转义的引号
+                    if (i == 0 || arrayStr.charAt(i - 1) != '\\') {
+                        inQuotes = false;
+                    }
+                }
+            } else if (c == ',' && !inQuotes) {
+                // 找到数组元素分隔符
+                String element = arrayStr.substring(start, i).trim();
+                if (element.startsWith("\"") && element.endsWith("\"")) {
+                    element = element.substring(1, element.length() - 1);
+                } else if (element.startsWith("'") && element.endsWith("'")) {
+                    element = element.substring(1, element.length() - 1);
+                }
+                if (!element.isEmpty()) {
+                    result.add(element);
+                }
+                start = i + 1;
+            }
+        }
+        
+        // 添加最后一个元素
+        String element = arrayStr.substring(start).trim();
+        if (element.startsWith("\"") && element.endsWith("\"")) {
+            element = element.substring(1, element.length() - 1);
+        } else if (element.startsWith("'") && element.endsWith("'")) {
+            element = element.substring(1, element.length() - 1);
+        }
+        if (!element.isEmpty()) {
+            result.add(element);
+        }
+        
+        return result;
     }
     
     /**

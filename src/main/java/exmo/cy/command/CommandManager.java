@@ -40,8 +40,17 @@ public class CommandManager {
     }
     
     public CommandManager(ServerService serverService) {
-        this(serverService, null);
+        this.serverService = serverService;
+        this.serverGroupService = new ServerGroupService();
+        this.serverGroupService.setServerService(serverService); // 设置ServerService依赖
         this.taskScheduler = new TaskScheduler(serverService);
+        this.commands = new HashMap<>();
+        this.commandAliases = new HashMap<>();
+        this.eventListeners = new ConcurrentHashMap<>();
+        this.attachedServer = null;
+        
+        // 注册内置命令
+        registerBuiltInCommands();
     }
     
     public void setServerGroupService(exmo.cy.service.ServerGroupService serverGroupService) {
@@ -118,7 +127,7 @@ public class CommandManager {
     public boolean executeCommand(String input) {
         String[] parts = input.trim().split("\\s+");
         if (parts.length == 0 || parts[0].isEmpty()) {
-            Logger.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_CYAN, "§c请输入有效命令，输入 'help' 查看可用命令"));
+            Logger.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_CYAN, "请输入有效命令，输入 'help' 查看可用命令"));
             return true;
         }
         
@@ -150,7 +159,7 @@ public class CommandManager {
                 return true;
             }
         } else {
-            Logger.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_CYAN, "未知命令 §e'" + commandName + "'§c。输入 §ahelp §c查看可用命令"));
+            Logger.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_CYAN, "未知命令 '" + commandName + "'。输入 help 查看可用命令"));
             return true;
         }
     }

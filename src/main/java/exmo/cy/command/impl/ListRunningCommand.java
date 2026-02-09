@@ -25,14 +25,14 @@ public class ListRunningCommand extends AnnotatedCommand {
     public boolean execute(String[] args) {
         Map<String, ServerInstance> activeServers = serverService.getActiveServers();
         if (activeServers.isEmpty()) {
-            System.out.println(ConsoleColor.colorize(ConsoleColor.YELLOW, "没有运行中的服务器"));
+            Logger.println(ConsoleColor.colorize(ConsoleColor.YELLOW, "没有运行中的服务器"));
         } else {
-            System.out.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_GREEN, "运行中的服务器："));
+            Logger.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_GREEN, "运行中的服务器："));
             for (ServerInstance instance : activeServers.values()) {
                 String serverInfo = "- " + ConsoleColor.colorize(ConsoleColor.BRIGHT_CYAN, instance.getServer().getName()) + 
                              " (版本: " + ConsoleColor.colorize(ConsoleColor.BRIGHT_WHITE, instance.getServer().getVersion()) + 
                              ", 运行时长: " + ConsoleColor.colorize(ConsoleColor.BRIGHT_YELLOW, String.valueOf(instance.getUptime() / 1000)) + "秒)";
-                System.out.println(serverInfo);
+                Logger.println(serverInfo);
             }
         }
         return true;

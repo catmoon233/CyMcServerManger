@@ -42,15 +42,15 @@ public class ServerManagerApp {
             startCommandLineMode();
         } else {
             // 显示欢迎信息
-            System.out.println(ConsoleColor.colorize(ConsoleColor.GREEN, WELCOME_MESSAGE));
+            Logger.println(ConsoleColor.colorize(ConsoleColor.GREEN, WELCOME_MESSAGE));
             
             // 显示启动选项
-            System.out.println("\n" + ConsoleColor.colorize(ConsoleColor.BRIGHT_BLUE, "启动选项:"));
-            System.out.println(ConsoleColor.colorize(ConsoleColor.CYAN, "  -web 或 --web    启动Web界面模式"));
-            System.out.println(ConsoleColor.colorize(ConsoleColor.CYAN, "  -console 或 --console  启动命令行模式"));
-            System.out.println(ConsoleColor.colorize(ConsoleColor.YELLOW, "  直接运行（无参数）  显示此帮助信息"));
+            Logger.println("\n" + ConsoleColor.colorize(ConsoleColor.BRIGHT_BLUE, "启动选项:"));
+            Logger.println(ConsoleColor.colorize(ConsoleColor.CYAN, "  -web 或 --web    启动Web界面模式"));
+            Logger.println(ConsoleColor.colorize(ConsoleColor.CYAN, "  -console 或 --console  启动命令行模式"));
+            Logger.println(ConsoleColor.colorize(ConsoleColor.YELLOW, "  直接运行（无参数）  显示此帮助信息"));
 
-            System.out.println("\n" + ConsoleColor.colorize(ConsoleColor.GREEN, "默认使用命令行模式"));
+            Logger.println("\n" + ConsoleColor.colorize(ConsoleColor.GREEN, "默认使用命令行模式"));
             startCommandLineMode();
 
         }
@@ -66,7 +66,7 @@ public class ServerManagerApp {
             System.setProperty("terminal.ansi", "true");
         }
         // 记录颜色初始化结果
-        System.out.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_BLACK, 
+        Logger.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_BLACK, 
             "控制台颜色支持: " + (isAnsiSupported ? "已启用" : "已禁用")));
     }
 
@@ -74,7 +74,7 @@ public class ServerManagerApp {
      * 启动Web模式
      */
     private static void startWebMode() {
-        System.out.println(ConsoleColor.colorize(ConsoleColor.GREEN, "正在启动Web界面模式..."));
+        Logger.println(ConsoleColor.colorize(ConsoleColor.GREEN, "正在启动Web界面模式..."));
         SpringApplication.run(WebApplication.class, "-web");
     }
 
@@ -82,7 +82,7 @@ public class ServerManagerApp {
      * 启动命令行模式
      */
     private static void startCommandLineMode() {
-        System.out.println(ConsoleColor.colorize(ConsoleColor.GREEN, "正在启动命令行模式..."));
+        Logger.println(ConsoleColor.colorize(ConsoleColor.GREEN, "正在启动命令行模式..."));
         Logger.info("启动命令行模式");
         
         try (Scanner scanner = new Scanner(System.in)) {

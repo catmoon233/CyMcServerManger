@@ -1,5 +1,7 @@
 package exmo.cy.socket;
 
+import exmo.cy.util.Logger;
+
 import java.io.*;
 import java.net.Socket;
 import java.util.Scanner;
@@ -13,8 +15,8 @@ public class TcpClientExample {
     private static final int PORT = 5245;
     
     public static void main(String[] args) {
-        System.out.println("TCP Socket客户端示例");
-        System.out.println("连接到: " + HOST + ":" + PORT);
+        Logger.println("TCP Socket客户端示例");
+        Logger.println("连接到: " + HOST + ":" + PORT);
         
         try (Socket socket = new Socket(HOST, PORT);
              BufferedReader input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -23,14 +25,14 @@ public class TcpClientExample {
             
             // 读取欢迎消息
             String welcomeMessage = input.readLine();
-            System.out.println("服务器响应: " + welcomeMessage);
+            Logger.println("服务器响应: " + welcomeMessage);
             
-            System.out.println("\n支持的命令:");
-            System.out.println("  list-servers          - 列出所有服务器");
-            System.out.println("  server-status:<name>  - 查询服务器状态");
-            System.out.println("  health-check          - 健康检查");
-            System.out.println("  quit                  - 退出");
-            System.out.println("\n请输入命令:");
+            Logger.println("\n支持的命令:");
+            Logger.println("  list-servers          - 列出所有服务器");
+            Logger.println("  server-status:<name>  - 查询服务器状态");
+            Logger.println("  health-check          - 健康检查");
+            Logger.println("  quit                  - 退出");
+            Logger.println("\n请输入命令:");
             
             String command;
             while (!(command = scanner.nextLine()).equalsIgnoreCase("quit")) {
@@ -43,9 +45,9 @@ public class TcpClientExample {
                 
                 // 读取响应
                 String response = input.readLine();
-                System.out.println("服务器响应: " + response);
+                Logger.println("服务器响应: " + response);
                 
-                System.out.println("\n请输入下一个命令 (或输入 'quit' 退出):");
+                Logger.println("\n请输入下一个命令 (或输入 'quit' 退出):");
             }
             
         } catch (IOException e) {

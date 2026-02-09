@@ -29,30 +29,30 @@ public class EStopCommand extends AnnotatedCommand {
     public boolean execute(String[] args) {
         Map<String, ServerInstance> activeServers = serverService.getActiveServers();
         if (activeServers.isEmpty()) {
-            System.out.println(ConsoleColor.colorize(ConsoleColor.YELLOW, "没有运行中的服务器"));
+            Logger.println(ConsoleColor.colorize(ConsoleColor.YELLOW, "没有运行中的服务器"));
             return true;
         }
         
         List<ServerInstance> serverList = new ArrayList<>(activeServers.values());
-        System.out.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_GREEN, "运行中的服务器："));
+        Logger.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_GREEN, "运行中的服务器："));
         for (int i = 0; i < serverList.size(); i++) {
             String serverInfo = (i + 1) + ". " + ConsoleColor.colorize(ConsoleColor.BRIGHT_CYAN, serverList.get(i).getServer().getName());
-            System.out.println(serverInfo);
+            Logger.println(serverInfo);
         }
         
-        System.out.print(ConsoleColor.colorize(ConsoleColor.BRIGHT_BLUE, "输入要紧急停止的服务器序号: "));
+        Logger.print(ConsoleColor.colorize(ConsoleColor.BRIGHT_BLUE, "输入要紧急停止的服务器序号: "));
         try {
             int choice = Integer.parseInt(scanner.nextLine()) - 1;
             if (choice < 0 || choice >= serverList.size()) {
-                System.out.println(ConsoleColor.colorize(ConsoleColor.RED, "错误: 无效的选择"));
+                Logger.println(ConsoleColor.colorize(ConsoleColor.RED, "错误: 无效的选择"));
                 return true;
             }
             
             ServerInstance instance = serverList.get(choice);
             serverService.forceStopServer(instance.getServer().getName());
-            System.out.println(ConsoleColor.colorize(ConsoleColor.GREEN, "已强制终止服务器 " + instance.getServer().getName()));
+            Logger.println(ConsoleColor.colorize(ConsoleColor.GREEN, "已强制终止服务器 " + instance.getServer().getName()));
         } catch (Exception e) {
-            System.out.println(ConsoleColor.colorize(ConsoleColor.RED, "强制终止服务器时出错: " + e.getMessage()));
+            Logger.println(ConsoleColor.colorize(ConsoleColor.RED, "强制终止服务器时出错: " + e.getMessage()));
         }
         
         return true;

@@ -55,16 +55,32 @@ public class CommandHandler {
         
         while (running) {
             try {
-                // 显示彩色命令提示符
-                System.out.print(ConsoleColor.colorize(ConsoleColor.BRIGHT_CYAN, "\nCyMc> "));
+                // 检查是否连接到服务器，并显示相应提示符
+                String prompt = commandManager.isAttached() ? 
+                    ConsoleColor.colorize(ConsoleColor.BRIGHT_MAGENTA, 
+                        "[" + commandManager.getAttachedServerName() + "]> ") : 
+                    ConsoleColor.colorize(ConsoleColor.BRIGHT_CYAN, "\nCyMc> ");
+                
+                Logger.print(prompt);
                 String input = scanner.nextLine().trim();
                 
                 if (input.isEmpty()) {
                     continue;
                 }
                 
-                // 解析并执行命令
-                commandManager.executeCommand(input);
+                // 如果已连接到服务器且输入不是特殊命令，则转发到服务器
+                if (commandManager.isAttached()) {
+                    // 检查是否是特殊控制命令
+                    if ("detach".equalsIgnoreCase(input) || "force-stop".equalsIgnoreCase(input)) {
+                        commandManager.handleConsoleCommand(input);
+                    } else {
+                        // 转发命令到连接的服务器
+                        commandManager.handleConsoleCommand(input);
+                    }
+                } else {
+                    // 在主控制台执行命令
+                    commandManager.executeCommand(input);
+                }
                 
             } catch (Exception e) {
                 Logger.error("处理命令时发生错误", e);
@@ -76,13 +92,13 @@ public class CommandHandler {
      * 显示欢迎信息
      */
     private void showWelcomeMessage() {
-        System.out.println(ConsoleColor.colorize(ConsoleColor.GREEN, 
+        Logger.println(ConsoleColor.colorize(ConsoleColor.GREEN, 
             "\n================================="));
-        System.out.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_GREEN, 
+        Logger.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_GREEN, 
             "   欢迎使用 CyMc 服务器管理器"));
-        System.out.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_CYAN, 
+        Logger.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_CYAN, 
             "   输入 'help' 查看可用命令"));
-        System.out.println(ConsoleColor.colorize(ConsoleColor.GREEN, 
+        Logger.println(ConsoleColor.colorize(ConsoleColor.GREEN, 
             "================================="));
     }
 //
@@ -97,7 +113,7 @@ public class CommandHandler {
 //        System.arraycopy(parts, 1, args, 0, parts.length - 1);
 //
 //        // 彩色输出命令执行信息
-//        System.out.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_BLUE,
+//        Logger.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_BLUE,
 //            "执行命令: " + commandName));
 //
 //        if ("exit".equals(commandName) || "quit".equals(commandName)) {
@@ -110,19 +126,19 @@ public class CommandHandler {
 //            try {
 //                boolean success = command.execute(args);
 //                if (success) {
-//                    System.out.println(ConsoleColor.colorize(ConsoleColor.GREEN,
+//                    Logger.println(ConsoleColor.colorize(ConsoleColor.GREEN,
 //                        "命令执行成功"));
 //                } else {
-//                    System.out.println(ConsoleColor.colorize(ConsoleColor.RED,
+//                    Logger.println(ConsoleColor.colorize(ConsoleColor.RED,
 //                        "命令执行失败"));
 //                }
 //            } catch (Exception e) {
 //                Logger.error("执行命令 '" + commandName + "' 时发生错误", e);
 //            }
 //        } else {
-//            System.out.println(ConsoleColor.colorize(ConsoleColor.RED,
+//            Logger.println(ConsoleColor.colorize(ConsoleColor.RED,
 //                "未知命令: " + commandName));
-//            System.out.println(ConsoleColor.colorize(ConsoleColor.YELLOW,
+//            Logger.println(ConsoleColor.colorize(ConsoleColor.YELLOW,
 //                "输入 'help' 查看可用命令"));
 //        }
 //    }
@@ -131,7 +147,7 @@ public class CommandHandler {
      * 退出程序
      */
     private void exit() {
-        System.out.println(ConsoleColor.colorize(ConsoleColor.YELLOW, 
+        Logger.println(ConsoleColor.colorize(ConsoleColor.YELLOW, 
             "正在退出 CyMc 服务器管理器..."));
         running = false;
     }

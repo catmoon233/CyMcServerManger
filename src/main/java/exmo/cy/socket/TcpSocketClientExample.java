@@ -1,5 +1,7 @@
 package exmo.cy.socket;
 
+import exmo.cy.util.Logger;
+
 import java.io.*;
 import java.net.Socket;
 import java.util.Scanner;
@@ -14,8 +16,8 @@ public class TcpSocketClientExample {
     private static final int PORT = 5245;
     
     public static void main(String[] args) {
-        System.out.println("TCP Socket客户端示例");
-        System.out.println("连接到: " + HOST + ":" + PORT);
+        Logger.println("TCP Socket客户端示例");
+        Logger.println("连接到: " + HOST + ":" + PORT);
         
         try (Socket socket = new Socket(HOST, PORT);
              BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -23,11 +25,11 @@ public class TcpSocketClientExample {
             
             // 读取欢迎消息
             String welcomeResponse = reader.readLine();
-            System.out.println("服务器响应: " + welcomeResponse);
+            Logger.println("服务器响应: " + welcomeResponse);
             
             Scanner scanner = new Scanner(System.in);
             
-            System.out.println("\n输入命令 (输入 'help' 查看命令列表，输入 'quit' 退出):");
+            Logger.println("\n输入命令 (输入 'help' 查看命令列表，输入 'quit' 退出):");
             
             String inputLine;
             while (!(inputLine = scanner.nextLine()).equalsIgnoreCase("quit")) {
@@ -40,13 +42,13 @@ public class TcpSocketClientExample {
                 
                 // 读取响应
                 String response = reader.readLine();
-                System.out.println("服务器响应: " + response);
+                Logger.println("服务器响应: " + response);
                 
                 if ("quit".equalsIgnoreCase(inputLine.trim())) {
                     break;
                 }
                 
-                System.out.print("\n请输入命令: ");
+                Logger.print("\n请输入命令: ");
             }
             
         } catch (IOException e) {
@@ -54,6 +56,6 @@ public class TcpSocketClientExample {
             e.printStackTrace();
         }
         
-        System.out.println("客户端已断开连接");
+        Logger.println("客户端已断开连接");
     }
 }
