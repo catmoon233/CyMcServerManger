@@ -40,7 +40,7 @@ public class EStopCommand extends AnnotatedCommand {
             Logger.println(serverInfo);
         }
         
-        Logger.print(ConsoleColor.colorize(ConsoleColor.BRIGHT_BLUE, "输入要紧急停止的服务器序号: "));
+        Logger.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_BLUE, "输入要紧急停止的服务器序号: "));
         try {
             int choice = Integer.parseInt(scanner.nextLine()) - 1;
             if (choice < 0 || choice >= serverList.size()) {

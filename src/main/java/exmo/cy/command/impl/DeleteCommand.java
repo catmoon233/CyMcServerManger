@@ -36,7 +36,7 @@ public class DeleteCommand extends AnnotatedCommand {
                 Logger.println((i + 1) + ". " + servers.get(i).getName());
             }
             
-            Logger.print("选择要删除的服务器编号: ");
+            Logger.println("选择要删除的服务器编号: ");
             int choice = Integer.parseInt(scanner.nextLine()) - 1;
             if (choice < 0 || choice >= servers.size()) {
                 Logger.println("错误: 无效的选择");
@@ -44,7 +44,7 @@ public class DeleteCommand extends AnnotatedCommand {
             }
             
             Server server = servers.get(choice);
-            Logger.print("确定要删除服务器配置和本地文件? (y/n): ");
+            Logger.println("确定要删除服务器配置和本地文件? (y/n): ");
             
             if ("y".equalsIgnoreCase(scanner.nextLine().trim())) {
                 serverService.deleteServer(server.getName(), true);

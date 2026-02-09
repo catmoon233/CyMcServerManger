@@ -1,5 +1,6 @@
 package exmo.cy.service;
 
+import exmo.cy.config.ThreadConfig;
 import exmo.cy.model.Server;
 import exmo.cy.model.ServerGroup;
 import exmo.cy.util.Logger;
@@ -17,6 +18,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.RejectedExecutionHandler;
 
 /**
  * 服务器群组服务
@@ -31,13 +35,63 @@ public class ServerGroupService {
     private final Map<String, ServerGroup> groups = new ConcurrentHashMap<>();
     private final Map<String, Queue<String>> orderedStartupQueues = new ConcurrentHashMap<>(); // 群组启动队列
     private final Map<String, Boolean> groupStartupStatus = new ConcurrentHashMap<>(); // 群组启动状态
-    private final ExecutorService executorService = Executors.newCachedThreadPool();
+    private final ExecutorService executorService = createManagedThreadPool();
     
     private static final String GROUPS_CONFIG_FILE = "server_groups.json";
     
     @PostConstruct
     public void init() {
         loadGroups();
+        Logger.info("服务器群组服务初始化完成，线程池配置: " + getThreadPoolInfo());
+    }
+    
+    /**
+     * 创建受管的线程池
+     */
+    private ExecutorService createManagedThreadPool() {
+        // 使用线程配置类获取推荐大小
+        int poolSize = ThreadConfig.getRecommendedThreadPoolSize(1.0);
+        
+        ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(
+            poolSize,
+            ThreadConfig.createServiceThreadFactory("ServerGroup")
+        );
+        
+        // 设置合理的拒绝策略
+        executor.setRejectedExecutionHandler(new RejectedExecutionHandler() {
+            @Override
+            public void rejectedExecution(Runnable r, ThreadPoolExecutor exec) {
+                Logger.warn("服务器群组线程池任务被拒绝，当前活跃线程数: " + 
+                           exec.getActiveCount() + "/" + exec.getMaximumPoolSize() + 
+                           ", 队列大小: " + exec.getQueue().size());
+                // 检查线程资源状况
+                if (!ThreadConfig.isThreadResourceSufficient()) {
+                    Logger.error("系统线程资源不足，可能导致线程创建失败");
+                    ThreadConfig.printDetailedThreadInfo();
+                }
+                // 在当前线程中执行被拒绝的任务
+                try {
+                    r.run();
+                } catch (Exception e) {
+                    Logger.error("执行被拒绝的任务时出错: " + e.getMessage(), e);
+                }
+            }
+        });
+        
+        return executor;
+    }
+    
+    /**
+     * 获取线程池信息
+     */
+    private String getThreadPoolInfo() {
+        if (executorService instanceof ThreadPoolExecutor) {
+            ThreadPoolExecutor tpe = (ThreadPoolExecutor) executorService;
+            return String.format("核心线程数:%d, 最大线程数:%d, 活跃线程数:%d, 队列大小:%d", 
+                tpe.getCorePoolSize(), tpe.getMaximumPoolSize(), 
+                tpe.getActiveCount(), tpe.getQueue().size());
+        }
+        return "未知线程池类型";
     }
     
     /**

@@ -235,7 +235,7 @@ public class AdvancedScheduleCommand extends AnnotatedCommand {
     }
     
     private boolean clearAllTasks() {
-        Logger.print("确定要清空所有计划任务吗？(输入 'yes' 确认): ");
+        Logger.println("确定要清空所有计划任务吗？(输入 'yes' 确认): ");
         String confirm = scanner.nextLine().trim();
         
         if ("yes".equalsIgnoreCase(confirm)) {

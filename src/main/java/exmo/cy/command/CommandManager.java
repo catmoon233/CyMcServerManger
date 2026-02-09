@@ -90,6 +90,8 @@ public class CommandManager {
         registerCommand(new ScheduleCommand(serverService, taskScheduler));
         registerCommand(new AdvancedScheduleCommand(serverService, taskScheduler));
         registerCommand(new SendCommand(serverService));
+        registerCommand(new EditConfigCommand(serverService));
+        registerCommand(new ReloadConfigCommand(serverService));
     }
     
     /**

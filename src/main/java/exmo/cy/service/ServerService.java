@@ -1,6 +1,7 @@
 package exmo.cy.service;
 
 import exmo.cy.config.Constants;
+import exmo.cy.config.ThreadConfig;
 import exmo.cy.exception.ConfigurationException;
 import exmo.cy.exception.ServerOperationException;
 import exmo.cy.model.LaunchConfig;
@@ -21,6 +22,10 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import jakarta.annotation.PreDestroy;
 import org.springframework.stereotype.Service;
@@ -37,6 +42,7 @@ public class ServerService {
     private final ProcessManager processManager;
     private final Map<String, ServerInstance> activeServers;
     private final Set<String> blockedServers;
+    private final ExecutorService monitorExecutorService;
     
     /**
      * 构造函数
@@ -46,9 +52,14 @@ public class ServerService {
         this.processManager = new ProcessManager();
         this.activeServers = new ConcurrentHashMap<>();
         this.blockedServers = new HashSet<>();
+        // 优化线程池配置：限制最大线程数为处理器核心数的2倍，最多16个线程
+        int maxThreads = Math.min(ThreadConfig.getRecommendedThreadPoolSize(2.0), 16);
+        this.monitorExecutorService = Executors.newFixedThreadPool(maxThreads, 
+            ThreadConfig.createServiceThreadFactory("server-monitor"));
         
         // 初始化调度管理器
         SchedulerManager.getInstance().initialize(this);
+        Logger.info("服务器服务初始化完成，监控线程池配置: " + getMonitorThreadPoolInfo());
     }
     
     /**
@@ -267,9 +278,16 @@ public class ServerService {
         
         switch (launchMode) {
             case Constants.LAUNCH_MODE_CORE:
+                // 如果提供了自定义JVM参数，使用它；否则使用默认内存参数
+                if (jvmArgs != null && !jvmArgs.trim().isEmpty()) {
+                    command.addAll(Arrays.asList(jvmArgs.trim().split("\\s+")));
+                } else {
+                    command.addAll(Arrays.asList(
+                        "-Xms" + Constants.DEFAULT_MIN_MEMORY,
+                        "-Xmx" + Constants.DEFAULT_MAX_MEMORY
+                    ));
+                }
                 command.addAll(Arrays.asList(
-                    "-Xms" + Constants.DEFAULT_MIN_MEMORY,
-                    "-Xmx" + Constants.DEFAULT_MAX_MEMORY,
                     "-Dterminal.jline=false",
                     "-Dterminal.ansi=true",
                     "-Dfile.encoding=" + Constants.FILE_ENCODING,
@@ -282,9 +300,16 @@ public class ServerService {
                 break;
                 
             case Constants.LAUNCH_MODE_MODPACK:
+                // 如果提供了自定义JVM参数，使用它；否则使用默认内存参数
+                if (jvmArgs != null && !jvmArgs.trim().isEmpty()) {
+                    command.addAll(Arrays.asList(jvmArgs.trim().split("\\s+")));
+                } else {
+                    command.addAll(Arrays.asList(
+                        "-Xms" + Constants.DEFAULT_MIN_MEMORY,
+                        "-Xmx" + Constants.DEFAULT_MAX_MEMORY
+                    ));
+                }
                 command.addAll(Arrays.asList(
-                    "-Xms" + Constants.DEFAULT_MIN_MEMORY,
-                    "-Xmx" + Constants.DEFAULT_MAX_MEMORY,
                     "-Dterminal.jline=false",
                     "-Dterminal.ansi=true",
                     "-Dfile.encoding=" + Constants.FILE_ENCODING,
@@ -297,6 +322,10 @@ public class ServerService {
                 break;
                 
             case Constants.LAUNCH_MODE_BASIC:
+                // 如果提供了自定义JVM参数，使用它；否则不添加JVM内存参数
+                if (jvmArgs != null && !jvmArgs.trim().isEmpty()) {
+                    command.addAll(Arrays.asList(jvmArgs.trim().split("\\s+")));
+                }
                 command.addAll(Arrays.asList(
                     "-Dfunction.permission.level=" + Constants.MAX_FUNCTION_PERMISSION_LEVEL,
                     "-Dop.permission.level=" + Constants.MAX_OP_PERMISSION_LEVEL,
@@ -305,6 +334,10 @@ public class ServerService {
                 break;
                 
             case Constants.LAUNCH_MODE_BASIC_FIX:
+                // 如果提供了自定义JVM参数，使用它；否则不添加JVM内存参数
+                if (jvmArgs != null && !jvmArgs.trim().isEmpty()) {
+                    command.addAll(Arrays.asList(jvmArgs.trim().split("\\s+")));
+                }
                 command.addAll(Arrays.asList(
                     "-Dfunction.permission.level=" + Constants.MAX_FUNCTION_PERMISSION_LEVEL,
                     "-Dop.permission.level=" + Constants.MAX_OP_PERMISSION_LEVEL,
@@ -343,10 +376,36 @@ public class ServerService {
     }
     
     /**
+     * 创建监控线程池
+     */
+    private ExecutorService createMonitorThreadPool() {
+        // 使用线程配置类获取推荐大小
+        int poolSize = ThreadConfig.getRecommendedThreadPoolSize(1.0);
+        
+        return Executors.newFixedThreadPool(
+            poolSize, 
+            ThreadConfig.createBackgroundThreadFactory("ServerMonitor")
+        );
+    }
+    
+    /**
+     * 获取监控线程池信息
+     */
+    private String getMonitorThreadPoolInfo() {
+        if (monitorExecutorService instanceof java.util.concurrent.ThreadPoolExecutor) {
+            java.util.concurrent.ThreadPoolExecutor tpe = 
+                (java.util.concurrent.ThreadPoolExecutor) monitorExecutorService;
+            return String.format("核心线程数:%d, 最大线程数:%d, 活跃线程数:%d", 
+                tpe.getCorePoolSize(), tpe.getMaximumPoolSize(), tpe.getActiveCount());
+        }
+        return "未知线程池类型";
+    }
+    
+    /**
      * 启动进程监控线程
      */
     private void startProcessMonitor(ServerInstance instance) {
-        new Thread(() -> {
+        monitorExecutorService.submit(() -> {
             try {
                 int exitCode = processManager.waitForProcess(instance);
                 String message = "服务器 " + instance.getServer().getName() + " 已关闭，退出代码: " + exitCode;
@@ -363,7 +422,7 @@ public class ServerService {
             } finally {
                 activeServers.remove(instance.getServer().getName());
             }
-        }).start();
+        });
     }
     
     /**
@@ -377,9 +436,14 @@ public class ServerService {
             throw new ServerOperationException("服务器未运行: " + serverName);
         }
         processManager.stopServer(instance);
-        LogWebSocketHandler.sendLogMessage(serverName, "[INFO] 服务器正在停止...");
-        // 同时输出到控制台
-        Logger.println("[SERVER " + serverName + " INFO] 服务器正在停止...");
+        // 检查服务器是否被屏蔽，避免输出到控制台
+        if (!isServerBlocked(serverName)) {
+            LogWebSocketHandler.sendLogMessage(serverName, "[INFO] 服务器正在停止...");
+            // 同时输出到控制台
+            Logger.println("[SERVER " + serverName + " INFO] 服务器正在停止...");
+        } else {
+            Logger.info("[BLOCKED] " + serverName + ": 服务器正在停止...");
+        }
     }
     
     /**
@@ -409,9 +473,14 @@ public class ServerService {
             throw new ServerOperationException("服务器未运行: " + serverName);
         }
         processManager.sendCommand(instance, command);
-        LogWebSocketHandler.sendLogMessage(serverName, "[COMMAND SENT] " + command);
-        // 同时输出到控制台
-        Logger.println("[SERVER " + serverName + " COMMAND SENT] " + command);
+        // 检查服务器是否被屏蔽，避免输出到控制台
+        if (!isServerBlocked(serverName)) {
+            LogWebSocketHandler.sendLogMessage(serverName, "[COMMAND SENT] " + command);
+            // 同时输出到控制台
+            Logger.println("[SERVER " + serverName + " COMMAND SENT] " + command);
+        } else {
+            Logger.info("[BLOCKED] " + serverName + ": 命令已发送: " + command);
+        }
     }
     
     /**

@@ -42,7 +42,7 @@ public class AttachCommand extends AnnotatedCommand {
             Logger.println((i + 1) + ". " + serverList.get(i).getServer().getName());
         }
         
-        Logger.print("输入要连接的服务器序号: ");
+        Logger.println("输入要连接的服务器序号: ");
         try {
             int choice = Integer.parseInt(scanner.nextLine()) - 1;
             if (choice < 0 || choice >= serverList.size()) {

@@ -8,7 +8,8 @@ import exmo.cy.web.LogWebSocketHandler;
 
 import java.io.*;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 /**
@@ -20,6 +21,26 @@ public class ProcessManager {
     // 存储服务器名称到实例的映射，用于WebSocket通信
     private final Map<ServerInstance, String> serverNames = new ConcurrentHashMap<>();
     private ServerService serverService;
+    
+    // 专用的线程池用于处理流读取，避免创建过多线程
+    private final ExecutorService streamExecutorService;
+    
+    public ProcessManager() {
+        // 创建一个固定大小的线程池来处理流读取
+        // 使用CPU核心数的2倍，但至少4个线程，最多16个线程
+        int poolSize = Math.min(Math.max(4, Runtime.getRuntime().availableProcessors() * 2), 16);
+        this.streamExecutorService = Executors.newFixedThreadPool(poolSize, new ThreadFactory() {
+            private final AtomicInteger threadNumber = new AtomicInteger(1);
+            
+            @Override
+            public Thread newThread(Runnable r) {
+                Thread t = new Thread(r, "StreamGobbler-" + threadNumber.getAndIncrement());
+                t.setDaemon(true);
+                t.setPriority(Thread.MIN_PRIORITY);
+                return t;
+            }
+        });
+    }
     
     /**
      * 启动进程并设置输出监听
@@ -56,14 +77,24 @@ public class ProcessManager {
             
             // 启动输出监听线程 - 传递服务器名称用于日志记录
             startOutputGobbler(process.getInputStream(), serverName, output -> {
-                LogWebSocketHandler.sendLogMessageWithBlockCheck(serverName, output, serverService);
-                // 同时输出到控制台
-                Logger.println("[SERVER " + serverName + "] " + output);
+                // 检查服务器是否被屏蔽
+                if (serverService != null && serverService.isServerBlocked(serverName)) {
+                    // 服务器被屏蔽，完全不输出任何内容（包括不记录到主控制台）
+                    return;
+                }
+                // 未被屏蔽，输出到控制台和WebSocket
+                System.out.println("[SERVER " + serverName + "] " + output);
+                LogWebSocketHandler.sendLogMessage(serverName, "[SERVER " + serverName + "] " + output);
             });
             startOutputGobbler(process.getErrorStream(), serverName, error -> {
-                LogWebSocketHandler.sendLogMessageWithBlockCheck(serverName, "[ERROR] " + error, serverService);
-                // 同时输出到控制台
+                // 检查服务器是否被屏蔽
+                if (serverService != null && serverService.isServerBlocked(serverName)) {
+                    // 服务器被屏蔽，完全不输出任何内容（包括不记录到主控制台）
+                    return;
+                }
+                // 未被屏蔽，输出到控制台和WebSocket
                 System.err.println("[SERVER " + serverName + " ERROR] " + error);
+                LogWebSocketHandler.sendLogMessage(serverName, "[SERVER " + serverName + " ERROR] " + error);
             });
             
             return instance;
@@ -105,9 +136,8 @@ public class ProcessManager {
      * @param consumer 输出消费者
      */
     private void startOutputGobbler(InputStream inputStream, String serverName, Consumer<String> consumer) {
-        Thread thread = new Thread(new StreamGobbler(inputStream, serverName, consumer));
-        thread.setDaemon(true);
-        thread.start();
+        // 提交任务到线程池，而不是创建新线程
+        streamExecutorService.submit(new StreamGobbler(inputStream, serverName, consumer));
     }
     
     /**
@@ -156,9 +186,9 @@ public class ProcessManager {
             // 发送stop命令
             sendCommand(instance, "stop");
             Logger.info("已发送停止命令到服务器");
-        } catch (ServerOperationException e) {
+        } catch (Exception e) {
             // 如果发送stop命令失败，尝试强制停止
-            Logger.warn("发送停止命令失败，尝试强制停止");
+            Logger.warn("发送停止命令失败，尝试强制停止: " + e.getMessage());
             forceStopServer(instance);
         }
     }
@@ -178,14 +208,26 @@ public class ProcessManager {
             if (serverName == null) {
                 serverName = instance.getServerName() != null ? instance.getServerName() : "unknown";
             }
-            LogWebSocketHandler.sendLogMessageWithBlockCheck(serverName, "[INFO] 强制终止服务器进程", serverService);
+            
+            // 检查服务器是否被屏蔽
+            boolean isBlocked = serverService != null && serverService.isServerBlocked(serverName);
+            
+            if (!isBlocked) {
+                LogWebSocketHandler.sendLogMessageWithBlockCheck(serverName, "[INFO] 强制终止服务器进程", serverService);
+            } else {
+                Logger.info("[BLOCKED] " + serverName + ": 强制终止服务器进程");
+            }
             
             Logger.info("强制终止服务器进程");
             instance.getProcess().destroyForcibly();
             int exitCode = instance.getProcess().waitFor();
             Logger.info("服务器进程已终止，退出代码: " + exitCode);
             
-            LogWebSocketHandler.sendLogMessageWithBlockCheck(serverName, "[INFO] 服务器进程已终止，退出代码: " + exitCode, serverService);
+            if (!isBlocked) {
+                LogWebSocketHandler.sendLogMessageWithBlockCheck(serverName, "[INFO] 服务器进程已终止，退出代码: " + exitCode, serverService);
+            } else {
+                Logger.info("[BLOCKED] " + serverName + ": 服务器进程已终止，退出代码: " + exitCode);
+            }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new ServerOperationException("等待进程终止时被中断", e);
@@ -244,6 +286,15 @@ public class ProcessManager {
                 // 清除线程本地存储
                 Logger.clearServerNameContext();
             }
+        }
+    }
+    
+    /**
+     * 关闭进程管理器，释放资源
+     */
+    public void shutdown() {
+        if (streamExecutorService != null && !streamExecutorService.isShutdown()) {
+            streamExecutorService.shutdownNow();
         }
     }
 }

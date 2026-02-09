@@ -47,7 +47,7 @@ public class LastCommand extends AnnotatedCommand {
             Logger.println("即将使用上次参数启动：");
             Logger.println("服务器: " + server.getName());
             Logger.println("模式: " + getLaunchModeName(config.getLaunchMode()));
-            Logger.print("确定启动? (y/n): ");
+            Logger.println("确定启动? (y/n): ");
             
             if (!"y".equalsIgnoreCase(scanner.nextLine().trim())) {
                 Logger.println("启动已取消");

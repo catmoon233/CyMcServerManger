@@ -54,7 +54,7 @@ public class StartCommand extends AnnotatedCommand {
                 Logger.println(serverInfo);
             }
             
-            Logger.print(ConsoleColor.colorize(ConsoleColor.BRIGHT_BLUE, "选择服务器编号 (输入0返回): "));
+            Logger.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_BLUE, "选择服务器编号 (输入0返回): "));
             int choice;
             try {
                 choice = Integer.parseInt(scanner.nextLine().trim()) - 1;
@@ -96,7 +96,7 @@ public class StartCommand extends AnnotatedCommand {
             Logger.println("5. " + ConsoleColor.colorize(ConsoleColor.BRIGHT_WHITE, "自定义模式") + 
                              " - " + ConsoleColor.colorize(ConsoleColor.BRIGHT_BLACK, "使用自定义JVM和服务器参数"));
             
-            Logger.print(ConsoleColor.colorize(ConsoleColor.BRIGHT_BLUE, "选择启动模式 (1-5): "));
+            Logger.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_BLUE, "选择启动模式 (1-5): "));
             int launchMode;
             try {
                 launchMode = Integer.parseInt(scanner.nextLine().trim());
@@ -127,14 +127,14 @@ public class StartCommand extends AnnotatedCommand {
             
             // 如果是自定义模式，获取额外参数
             if (actualLaunchMode == Constants.LAUNCH_MODE_CUSTOM) {
-                Logger.print(ConsoleColor.colorize(ConsoleColor.BRIGHT_BLUE, 
+                Logger.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_BLUE, 
                     "输入自定义JVM参数 (可选，直接回车跳过): "));
                 jvmArgs = scanner.nextLine().trim();
                 if (jvmArgs.isEmpty()) {
                     jvmArgs = null;
                 }
                 
-                Logger.print(ConsoleColor.colorize(ConsoleColor.BRIGHT_BLUE, 
+                Logger.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_BLUE, 
                     "输入自定义服务器参数 (可选，直接回车跳过): "));
                 serverArgs = scanner.nextLine().trim();
                 if (serverArgs.isEmpty()) {
@@ -143,11 +143,11 @@ public class StartCommand extends AnnotatedCommand {
             }
             
             // 询问是否使用特定的Java路径
-            Logger.print(ConsoleColor.colorize(ConsoleColor.BRIGHT_BLUE, 
+            Logger.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_BLUE, 
                 "使用特定Java路径? (y/N): "));
             String useSpecificJava = scanner.nextLine().trim().toLowerCase();
             if ("y".equals(useSpecificJava) || "yes".equals(useSpecificJava)) {
-                Logger.print(ConsoleColor.colorize(ConsoleColor.BRIGHT_BLUE, 
+                Logger.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_BLUE, 
                     "输入Java路径: "));
                 javaPath = scanner.nextLine().trim();
             }
@@ -168,7 +168,7 @@ public class StartCommand extends AnnotatedCommand {
                 Logger.println("- 服务器参数: " + ConsoleColor.colorize(ConsoleColor.BRIGHT_WHITE, serverArgs));
             }
             
-            Logger.print(ConsoleColor.colorize(ConsoleColor.BRIGHT_YELLOW, 
+            Logger.println(ConsoleColor.colorize(ConsoleColor.BRIGHT_YELLOW, 
                 "确认启动? (Y/n): "));
             String confirm = scanner.nextLine().trim().toLowerCase();
             if ("n".equals(confirm) || "no".equals(confirm)) {

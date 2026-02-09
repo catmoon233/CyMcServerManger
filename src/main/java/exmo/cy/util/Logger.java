@@ -1,6 +1,9 @@
 package exmo.cy.util;
 
 import exmo.cy.web.LogWebSocketHandler;
+import exmo.cy.socket.TcpSocketServiceWithLogs;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.io.FileWriter;
@@ -14,6 +17,7 @@ import java.nio.file.Paths;
  * 简单的日志工具类
  * 提供统一的日志输出格式和级别控制
  */
+@Component
 public final class Logger {
 
     // 禁用Java util logging输出
@@ -29,6 +33,14 @@ public final class Logger {
     
     // 线程本地存储，用于追踪当前线程的服务器名称上下文
     private static final ThreadLocal<String> serverNameContext = ThreadLocal.withInitial(() -> "CONSOLE");
+    
+    // 添加TCP Socket服务引用
+    private static TcpSocketServiceWithLogs tcpSocketService;
+    
+    @Autowired
+    public void setTcpSocketService(TcpSocketServiceWithLogs service) {
+        Logger.tcpSocketService = service;
+    }
     
     // 行为日志相关
     private static final String BEHAVIOR_LOG_DIR = "behavior_logs";
@@ -144,6 +156,7 @@ public final class Logger {
      * @param message 消息
      */
     public static void debug(String message) {
+        String logMessage = formatLogMessage("DEBUG", message);
         log(LogLevel.DEBUG, message);
     }
     
@@ -152,7 +165,11 @@ public final class Logger {
      * @param message 消息
      */
     public static void info(String message) {
+        String logMessage = formatLogMessage("INFO", message);
         log(LogLevel.INFO, message);
+        
+        // 发送到TCP客户端
+        broadcastToTcpClients(logMessage);
     }
     
     /**
@@ -160,7 +177,11 @@ public final class Logger {
      * @param message 消息
      */
     public static void warn(String message) {
+        String logMessage = formatLogMessage("WARN", message);
         log(LogLevel.WARN, message);
+        
+        // 发送到TCP客户端
+        broadcastToTcpClients(logMessage);
     }
     
     /**
@@ -168,7 +189,11 @@ public final class Logger {
      * @param message 消息
      */
     public static void error(String message) {
+        String logMessage = formatLogMessage("ERROR", message);
         log(LogLevel.ERROR, message);
+        
+        // 发送到TCP客户端
+        broadcastToTcpClients(logMessage);
     }
     
     /**
@@ -177,10 +202,22 @@ public final class Logger {
      * @param throwable 异常
      */
     public static void error(String message, Throwable throwable) {
+        String logMessage = formatLogMessage("ERROR", message);
         log(LogLevel.ERROR, message);
         if (throwable != null) {
             throwable.printStackTrace();
         }
+        
+        // 发送到TCP客户端
+        broadcastToTcpClients(logMessage);
+    }
+    
+    /**
+     * 格式化日志消息
+     */
+    private static String formatLogMessage(String level, String message) {
+        String timestamp = LocalDateTime.now().format(TIME_FORMATTER);
+        return String.format("[%s] [%s] %s", timestamp, level, message);
     }
     
     /**
@@ -189,16 +226,30 @@ public final class Logger {
      * @param message 消息
      */
     private static void log(LogLevel level, String message) {
+        String timestamp = LocalDateTime.now().format(TIME_FORMATTER);
+        String logMessage = String.format("[%s] [%s] %s", timestamp, level.name(), message);
+        
+        // 始终记录到行为日志文件（如果是主控制台）
+        if ("CONSOLE".equals(getServerNameContext())) {
+            logBehavior(logMessage);
+        }
+        
+        // 检查日志级别是否满足输出条件
         if (level.getLevel() >= currentLevel.getLevel()) {
-            String timestamp = LocalDateTime.now().format(TIME_FORMATTER);
-            String logMessage = String.format("[%s] [%s] %s", timestamp, level.name(), message);
+            // 输出到控制台
+            if (level == LogLevel.ERROR) {
+                System.err.println(logMessage);
+            } else {
+                System.out.println(logMessage);
+            }
             
             // 通过WebSocket发送到前端 - 使用当前线程的服务器名称上下文
             try {
                 String contextServerName = getServerNameContext();
                 LogWebSocketHandler.sendLogMessage(contextServerName, logMessage);
             } catch (Exception e) {
-                // 忽略WebSocket发送错误
+                // 记录WebSocket发送错误到系统错误流
+                System.err.println("[LOGGER ERROR] WebSocket发送失败: " + e.getMessage());
             }
         }
     }
@@ -223,6 +274,9 @@ public final class Logger {
         } catch (Exception e) {
             // 忽略WebSocket发送错误
         }
+        
+        // 发送到TCP客户端
+        broadcastToTcpClients("[CONSOLE] " + message);
     }
     
     /**
@@ -231,7 +285,6 @@ public final class Logger {
      */
     public static void print(String message) {
         // 为普通输出也添加颜色支持
-
         String coloredMessage = ConsoleColor.colorize(ConsoleColor.WHITE, message);
         LOGGER.log(java.util.logging.Level.INFO, coloredMessage);
 
@@ -239,12 +292,29 @@ public final class Logger {
         if ("CONSOLE".equals(getServerNameContext())) {
             logBehavior("输出信息: " + message);
         }
+        
         // 通过WebSocket发送到前端 - 使用当前线程的服务器名称上下文
         try {
             String contextServerName = getServerNameContext();
             LogWebSocketHandler.sendLogMessage(contextServerName, message);
         } catch (Exception e) {
             // 忽略WebSocket发送错误
+        }
+        
+        // 不发送到TCP客户端，因为没有换行符
+    }
+    
+    /**
+     * 向TCP客户端广播日志消息
+     */
+    private static void broadcastToTcpClients(String message) {
+        if (tcpSocketService != null && tcpSocketService.isRunning()) {
+            try {
+                tcpSocketService.broadcastLogMessage(message);
+            } catch (Exception e) {
+                // 避免日志循环
+                System.err.println("向TCP客户端广播日志失败: " + e.getMessage());
+            }
         }
     }
     

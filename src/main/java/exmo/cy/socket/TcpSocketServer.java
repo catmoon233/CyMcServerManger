@@ -1,5 +1,6 @@
 package exmo.cy.socket;
 
+import exmo.cy.config.ThreadConfig;
 import exmo.cy.model.ServerInstance;
 import exmo.cy.service.ServerService;
 import exmo.cy.util.Logger;
@@ -7,6 +8,10 @@ import java.io.*;
 import java.net.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.RejectedExecutionHandler;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * TCP Socket服务器
@@ -20,6 +25,7 @@ public class TcpSocketServer {
     private ServerSocket serverSocket;
     private volatile boolean running = false;
     private final ExecutorService executorService;
+    private final Object shutdownLock = new Object();
     
     public TcpSocketServer(ServerService serverService) {
         this(DEFAULT_PORT, serverService);
@@ -28,7 +34,36 @@ public class TcpSocketServer {
     public TcpSocketServer(int port, ServerService serverService) {
         this.port = port;
         this.serverService = serverService;
-        this.executorService = Executors.newCachedThreadPool();
+        this.executorService = createSocketThreadPool();
+    }
+    
+    /**
+     * 创建Socket专用线程池
+     */
+    private ExecutorService createSocketThreadPool() {
+        // 使用线程配置类获取推荐大小
+        int poolSize = ThreadConfig.getRecommendedThreadPoolSize(2.0);
+        poolSize = Math.min(16, poolSize); // 限制最大线程数
+        
+        ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(
+            poolSize, 
+            ThreadConfig.createServiceThreadFactory("TcpSocket")
+        );
+        
+        // 设置合理的拒绝策略
+        executor.setRejectedExecutionHandler(new RejectedExecutionHandler() {
+            @Override
+            public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
+                Logger.warn("TCP Socket线程池已满，拒绝新连接请求");
+                // 检查线程资源状况
+                if (!ThreadConfig.isThreadResourceSufficient()) {
+                    Logger.error("系统线程资源严重不足，建议减少服务器启动数量");
+                    ThreadConfig.printDetailedThreadInfo();
+                }
+            }
+        });
+        
+        return executor;
     }
     
     /**
@@ -42,7 +77,7 @@ public class TcpSocketServer {
         serverSocket = new ServerSocket(port);
         running = true;
         
-        Logger.info("TCP Socket服务器启动，监听端口: " + port);
+        Logger.info("TCP Socket服务器启动，监听端口: " + port + ", 线程池配置: " + getSocketThreadPoolInfo());
         
         // 接受客户端连接的循环
         while (running) {
@@ -50,7 +85,16 @@ public class TcpSocketServer {
                 Socket clientSocket = serverSocket.accept();
                 Logger.debug("新的TCP客户端连接: " + clientSocket.getRemoteSocketAddress());
                 
-                // 为每个客户端连接创建一个处理器
+                // 检查线程池状态
+                if (executorService instanceof ThreadPoolExecutor) {
+                    ThreadPoolExecutor tpe = (ThreadPoolExecutor) executorService;
+                    if (tpe.getActiveCount() >= tpe.getMaximumPoolSize() * 0.8) {
+                        Logger.warn("TCP Socket线程池使用率过高: " + 
+                            String.format("%.1f%%", (double)tpe.getActiveCount()/tpe.getMaximumPoolSize()*100));
+                    }
+                }
+                
+                // 为每个客户端连接提交任务
                 executorService.submit(new ClientHandler(clientSocket, serverService));
             } catch (IOException e) {
                 if (running) {
@@ -61,17 +105,52 @@ public class TcpSocketServer {
     }
     
     /**
+     * 获取Socket线程池信息
+     */
+    private String getSocketThreadPoolInfo() {
+        if (executorService instanceof ThreadPoolExecutor) {
+            ThreadPoolExecutor tpe = (ThreadPoolExecutor) executorService;
+            return String.format("核心线程数:%d, 最大线程数:%d, 活跃线程数:%d, 队列大小:%d", 
+                tpe.getCorePoolSize(), tpe.getMaximumPoolSize(), 
+                tpe.getActiveCount(), tpe.getQueue().size());
+        }
+        return "未知线程池类型";
+    }
+    
+    /**
      * 停止TCP Socket服务器
      */
     public void stop() throws IOException {
-        running = false;
-        
-        if (serverSocket != null && !serverSocket.isClosed()) {
-            serverSocket.close();
+        synchronized (shutdownLock) {
+            if (!running) {
+                return;
+            }
+            
+            Logger.info("正在停止TCP Socket服务器...");
+            running = false;
+            
+            if (serverSocket != null && !serverSocket.isClosed()) {
+                serverSocket.close();
+            }
+            
+            // 优雅关闭线程池
+            executorService.shutdown();
+            try {
+                if (!executorService.awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS)) {
+                    Logger.warn("TCP Socket线程池关闭超时，强制关闭");
+                    executorService.shutdownNow();
+                    if (!executorService.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS)) {
+                        Logger.error("TCP Socket线程池无法正常关闭");
+                    }
+                }
+            } catch (InterruptedException e) {
+                Logger.warn("TCP Socket服务器关闭过程中被中断");
+                executorService.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+            
+            Logger.info("TCP Socket服务器已停止，线程池统计: " + getSocketThreadPoolInfo());
         }
-        
-        executorService.shutdown();
-        Logger.info("TCP Socket服务器已停止");
     }
     
     /**

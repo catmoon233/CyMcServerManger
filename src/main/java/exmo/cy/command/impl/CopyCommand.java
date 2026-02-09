@@ -217,7 +217,7 @@ public class CopyCommand extends AnnotatedCommand {
         // 检查源服务器是否正在运行
         if (serverService.getActiveServers().containsKey(sourceServerName)) {
             Logger.println("警告: 源服务器 " + sourceServerName + " 正在运行，建议先停止后再复制");
-            Logger.print("是否继续复制？(y/N): ");
+            Logger.println("是否继续复制？(y/N): ");
             String confirm = scanner.nextLine().trim();
             if (!confirm.toLowerCase().startsWith("y")) {
                 Logger.println("复制操作已取消");

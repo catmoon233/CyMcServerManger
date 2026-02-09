@@ -5,6 +5,7 @@ import exmo.cy.service.ServerGroupService;
 import exmo.cy.service.ServerService;
 import exmo.cy.util.ConsoleColor;
 import exmo.cy.util.Logger;
+import exmo.cy.util.ThreadMonitor;
 import exmo.cy.web.WebApplication;
 
 import org.springframework.boot.SpringApplication;
@@ -34,6 +35,10 @@ public class ServerManagerApp {
     public static void main(String[] args) {
         // 初始化控制台颜色支持
         initializeConsoleColors();
+        
+        // 启动线程监控
+        ThreadMonitor.startMonitoring();
+        Logger.info("线程监控系统已启动");
 
         // 检查是否启动Web模式
         if (args.length > 0 && ("-web".equalsIgnoreCase(args[0]) || "--web".equalsIgnoreCase(args[0]))) {
@@ -52,7 +57,6 @@ public class ServerManagerApp {
 
             Logger.println("\n" + ConsoleColor.colorize(ConsoleColor.GREEN, "默认使用命令行模式"));
             startCommandLineMode();
-
         }
     }
 
@@ -75,6 +79,8 @@ public class ServerManagerApp {
      */
     private static void startWebMode() {
         Logger.println(ConsoleColor.colorize(ConsoleColor.GREEN, "正在启动Web界面模式..."));
+        // 执行健康检查
+        performStartupHealthCheck();
         SpringApplication.run(WebApplication.class, "-web");
     }
 
@@ -85,11 +91,38 @@ public class ServerManagerApp {
         Logger.println(ConsoleColor.colorize(ConsoleColor.GREEN, "正在启动命令行模式..."));
         Logger.info("启动命令行模式");
         
+        // 执行健康检查
+        performStartupHealthCheck();
+        
         try (Scanner scanner = new Scanner(System.in)) {
             CommandHandler handler = new CommandHandler(scanner);
             handler.startHandling();
         } catch (Exception e) {
             Logger.error("命令行模式出现错误", e);
+        } finally {
+            // 停止线程监控
+            ThreadMonitor.stopMonitoring();
+        }
+    }
+    
+    /**
+     * 执行启动时健康检查
+     */
+    private static void performStartupHealthCheck() {
+        Logger.info("执行启动健康检查...");
+        ThreadMonitor.HealthCheckResult health = ThreadMonitor.performHealthCheck();
+        
+        switch (health.status) {
+            case CRITICAL:
+                Logger.error("启动健康检查失败: " + health.message);
+                Logger.error("建议减少初始启动的服务器数量");
+                break;
+            case WARNING:
+                Logger.warn("启动健康检查警告: " + health.message);
+                break;
+            case HEALTHY:
+                Logger.info("启动健康检查通过: " + health.message);
+                break;
         }
     }
 }

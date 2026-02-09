@@ -29,31 +29,31 @@ public class AddCommand extends AnnotatedCommand {
     public boolean execute(String[] args) {
         Logger.println("=== 添加现有服务器 ===");
         
-        Logger.print("输入服务器目录路径: ");
+        Logger.println("输入服务器目录路径: ");
         String path = scanner.nextLine().trim();
         
-        Logger.print("输入服务器名称: ");
+        Logger.println("输入服务器名称: ");
         String name = scanner.nextLine().trim();
         
-        Logger.print("输入服务器描述: ");
+        Logger.println("输入服务器描述: ");
         String description = scanner.nextLine().trim();
         
-        Logger.print("输入服务器版本: ");
+        Logger.println("输入服务器版本: ");
         String version = scanner.nextLine().trim();
         
-        Logger.print("输入默认JVM参数 (可选，直接回车跳过): ");
+        Logger.println("输入默认JVM参数 (可选，直接回车跳过): ");
         String defaultJvmArgs = scanner.nextLine().trim();
         if (defaultJvmArgs.isEmpty()) {
             defaultJvmArgs = null;
         }
         
-        Logger.print("输入默认启动服务器参数 (可选，直接回车跳过): ");
+        Logger.println("输入默认启动服务器参数 (可选，直接回车跳过): ");
         String defaultServerArgs = scanner.nextLine().trim();
         if (defaultServerArgs.isEmpty()) {
             defaultServerArgs = null;
         }
         
-        Logger.print("输入服务器所属群组 (可选，直接回车跳过): ");
+        Logger.println("输入服务器所属群组 (可选，直接回车跳过): ");
         String groupName = scanner.nextLine().trim();
         if (groupName.isEmpty()) {
             groupName = null;

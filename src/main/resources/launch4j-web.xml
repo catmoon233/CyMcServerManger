@@ -19,11 +19,16 @@
     <bundledJre64Bit>false</bundledJre64Bit>
     <minVersion>11</minVersion>
     <maxVersion>20</maxVersion>
-    <initialHeapSize>256</initialHeapSize>
+    <initialHeapSize>512</initialHeapSize>
     <maxHeapSize>2048</maxHeapSize>
     <opt>-Dfile.encoding=UTF-8</opt>
     <opt>-Xmx2048m</opt>
-    <opt>-Xms256m</opt>
+    <opt>-Xms512m</opt>
+    <opt>-XX:MaxGCPauseMillis=200</opt>
+    <opt>-XX:+UseG1GC</opt>
+    <opt>-XX:ParallelGCThreads=4</opt>
+    <opt>-XX:ConcGCThreads=2</opt>
+    <opt>-Djava.awt.headless=true</opt>
   </jre>
   <versionInfo>
     <fileVersion>${version}.0</fileVersion>

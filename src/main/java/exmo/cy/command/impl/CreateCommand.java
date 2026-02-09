@@ -44,7 +44,7 @@ public class CreateCommand extends AnnotatedCommand {
             }
             
             Scanner scanner = new Scanner(System.in);
-            Logger.print("请选择核心文件 (输入编号): ");
+            Logger.println("请选择核心文件 (输入编号): ");
             String input = scanner.nextLine().trim();
             
             int selectedIndex;
@@ -62,25 +62,25 @@ public class CreateCommand extends AnnotatedCommand {
             String coreName = coreFiles.get(selectedIndex);
             Logger.println("您选择了: " + coreName);
             
-            Logger.print("输入服务器名称: ");
+            Logger.println("输入服务器名称: ");
             String serverName = scanner.nextLine().trim();
             
-            Logger.print("输入服务器描述: ");
+            Logger.println("输入服务器描述: ");
             String description = scanner.nextLine().trim();
             
-            Logger.print("输入服务器版本 (可选，默认为1.0.0): ");
+            Logger.println("输入服务器版本 (可选，默认为1.0.0): ");
             String version = scanner.nextLine().trim();
             if (version.isEmpty()) {
                 version = "1.0.0";
             }
             
-            Logger.print("输入默认JVM参数 (可选，直接回车跳过): ");
+            Logger.println("输入默认JVM参数 (可选，直接回车跳过): ");
             String defaultJvmArgs = scanner.nextLine().trim();
             if (defaultJvmArgs.isEmpty()) {
                 defaultJvmArgs = null;
             }
             
-            Logger.print("输入默认服务器参数 (可选，直接回车跳过): ");
+            Logger.println("输入默认服务器参数 (可选，直接回车跳过): ");
             String defaultServerArgs = scanner.nextLine().trim();
             if (defaultServerArgs.isEmpty()) {
                 defaultServerArgs = null;
